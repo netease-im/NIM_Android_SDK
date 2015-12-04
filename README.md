@@ -23,7 +23,7 @@
 libs
 ├── armeabi
 │   ├── libne_audio.so （高清语音录制功能必须）
-│   └── libcosine.so （Android 后台保活功能必须）
+│   └── libcosine.so （Android 后台保活需要）
 │   └── libnio.so （音视频、实时会话服务需要）
 │   ├── librtc_engine.so （音视频需要）
 │   └── librtc_network.so （音视频需要）
@@ -44,14 +44,15 @@ libs
 │   └── librts_network.so
 ├── nim-sdk-1.0.0.jar
 ├── netty-4.0.23-for-yx.final.jar
-└── cosinesdk.jar (安卓保活用，可选项)
+└── cosinesdk.jar (Android 后台保活保活需要)
 ```
 
 将这些文件拷贝到你的工程的 libs 目录下，即可完成配置。
 
 以上文件列表中，nim-sdk-1.0.0.jar (版本号可能会不同)为网易云信 SDK，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
 
-> 注意：如果你只需要 SDK 的基础功能（不含音视频及实时会话服务），则 so 库只需要 libne_audio.so 和 libcosine.so 两个，没有 libnio.so、librtc\*.so、librts\*.so；如果需要音视频功能，so 库需要加上 libnio.so及 librtc\*.so；如果需要实时会话服务，so 库需要加上 libnio.so、librts\*.so。此外，如果不需要安卓保活功能，可以去掉 cosinesdk.jar 。 
+> 注意：如果你只需要 SDK 的基础功能（不含音视频及实时会话服务），则 so 库只需要 libne_audio.so 和 libcosine.so 两个，没有 libnio.so、librtc\*.so、librts\*
+.so；如果需要音视频功能，so 库需要加上 libnio.so及 librtc\*.so；如果需要实时会话服务，so 库需要加上 libnio.so、librts\*.so。此外，如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ( AndroidManifest.xml 文件中相关的安卓保活的配置也可以删去)。 
 
 如果你的 APP 的 libs 里面只包含 armeabi 一个文件夹，为了保证在 arm-v7a 上有较好的性能，以及兼容各个平台，可将各目录下的 so 文件名改为原文件名加上"_{arch_of_cpu}"，然后统一放到 armeabi 目录下，SDK 也会加载到正确版本的so库。改名后的目录结构如下：
 
@@ -574,11 +575,17 @@ NIMClient.getService(MsgService.class).sendMessage(msg, false);
 ```
 
 - 发送消息时可以设置消息配置选项 `CustomMessageConfig`，主要用于设定消息的声明周期，是否需要推送，是否需要计入未读数等，目前支持的配置选项有：
+
 1\. enableHistory ：该消息是否要保存到服务器，如果为 false，通过 MsgService#pullMessageHistory 拉取的结果将不包含该条消息。默认为 true 。
+
 2\. enableRoaming ：该消息是否需要漫游。如果为 false ，一旦某一个客户端收取过该条消息，其他端将不会再漫游到该条消息。默认为 true 。
+
 3\. enableSelfSync ：多端同时登录时，发送一条消息后，是否要同步到其他同时登录的客户端。默认为 true 。
+
 4\. enablePush ： 该消息是否进行推送（消息提醒）。默认为 true 。
+
 5\. enablePushNick : 该消息是否需要推送昵称（针对iOS客户端有效），如果为true，那么对方收到消息后，iOS端将不显示推送昵称。默认为 true 。
+
 6\. enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
 
 示例如下：
@@ -687,7 +694,7 @@ private Observer<IMMessage> statusObserver = new Observer<IMMessage>() {
  NIMClient.getService(MsgService.class).queryRecentContacts()
 	 .setCallback(new RequestCallbackWrapper<List<RecentContact>>() {
 	   @Override
-       public void onResult(int code, List<RecentContact> recents, Throwable exception) {
+       public void onResult(int code, List<RecentContact> recents, Throwable e) {
             // recents参数即为最近联系人列表（最近会话列表）
        }
     });
@@ -731,7 +738,7 @@ for (RecentContact r : items) {
 
 - 设置当前会话
 
-如果用户在开始聊天时，开发者都调用了 `setChattingAccount` 接口，SDK会自动管理消息的未读条数。当收到新消息时，自动增加未读数，在 `setChattingAccount` 时，自动将未读数清零。如果第三方 APP 需要不进入聊天窗口，就能主动将未读数清零，可以通过调用如下接口来实现：
+如果用户在开始聊天时，开发者调用了 `setChattingAccount` 接口，SDK会自动管理消息的未读数。当收到新消息时，自动将未读数清零。如果第三方 APP 需要不进入聊天窗口，就需要将未读数清零，可以通过调用如下接口来实现：
 
 ```java
 // 触发 MsgServiceObserve#observeRecentContact(Observer, boolean) 通知，
@@ -753,7 +760,7 @@ NIMClient.getService(MsgService.class).deleteRecentContact(recent);
 
 除了内建消息类型以外，SDK 还支持收发自定义消息类型。SDK 不负责定义和解析自定义消息的具体内容，解释工作由开发者完成。SDK 会将自定义消息存入消息数据库，会和内建消息一并展现在消息记录中。
 为了使用更加方便，自定义消息采用附件的方式展示给开发者。体现在 `IMMessage` 类中，自定义消息的内容会被解析为 `MsgAttachment` 对象，由于 SDK 并不知道自定义消息的格式，第三方 APP 需要注册一个自定义消息解析器。当第三方 APP 调用查询查询消息历史的接口，或者是 SDK 收到消息通知第三方 APP 时，就能将自定义消息内容转换为一个 `MsgAttachment` 对象，然后就可以同操作图片消息等带附件消息一样，操作自定义消息了。
-为了增加自定义消息的灵活性，SDK 还提供了对其生命周期和推送参数的一些配置选项，开发者可以自主设定一条自定义消息是否要保存云端消息记录，是否要漫游，发送时是否要多端同步等。详见 `CustomMessageConfig` 的 API 文档。
+与 IMMessage 一致，为了增加自定义消息的灵活性，SDK 还提供了对其生命周期和推送参数的一些配置选项，开发者可以自主设定一条自定义消息是否要保存云端消息记录，是否要漫游，发送时是否要多端同步等的配置选项 `CustomMessageConfig`。详见上文发消息章节。
 
 创建和发送自定义消息的代码如下：
 
@@ -1024,7 +1031,9 @@ NIMClient.updateStatusBarNotificationConfig(config);
 除文本消息外，开发者可以通过  `NimStrings` 类修改这些默认提醒内容。
 
 如果开发者需要为每条消息指定具体的提醒内容，而不是显示默认内容，有以下两种接口：
+
 1\. SDK 1.7.0 及以上版本，开发者可以调用 `IMMessage` 的 `setPushContent` 接口；
+
 2\. 对于低于 1.7.0 的早期版本，开发者可以调用 `IMMessage` 的 `setContent` 接口。对于文本消息，该接口会同时修改消息内容和提醒内容，对于其他格式消息，该接口仅修改提醒内容。如果接收方是 iOS 客户端，消息推送的内容遵从相同的规则：如果设置了 `setContent` 字段，则使用设置的字符串作为推送内容，否则使用默认提醒内容。
 
 如果用户正在与某一个人聊天，当这个人的消息到达时，是不应该有状态栏提醒的，如果用户停留在最近联系人列表界面，收到消息也不应该有提醒，因此，为了内置的新消息提醒功能正确工作，开发者需要在进入进出聊天界面以及最近联系人列表界面时，通知 SDK。接口如下：
@@ -1328,7 +1337,9 @@ NIMClient.getService(TeamService.class).queryTeam(teamId).setCallback(new Reques
 ```
 
 群资料 SDK 本地存储说明：
-1\. 解散群、退群或者被移出群时，本地数据库会继续保留这个群资料，只是设置了无效标记，此时依然可以通过 queryTeam 查出来该群资料，只是 isMyTeam 返回 false 。 如果本地数据全部清空，下次登录同步时，服务器不会将无效的群资料同步过来，将无法取得已退出群的群资料。
+
+1\. 解散群、退群或者被移出群时，本地数据库会继续保留这个群资料，只是设置了无效标记，此时依然可以通过 queryTeam 查出来该群资料，只是 isMyTeam 返回 false 。 如果用户手动清空全部本地数据，下次登录同步时，服务器不会将无效的群资料同步过来，将无法取得已退出群的群资料。
+
 2\. 群解散后，通过 `searchTeam` 接口从服务器查询将返回 null 。
 
 ### <span id="创建群组">创建群组</span>
@@ -1371,7 +1382,8 @@ NIMClient.getService(TeamService.class).dismissTeam(teamId)
 普通群所有人都可以拉人入群，高级群仅管理员和拥有者可以邀请人入群，接口均为：
 
 ```java
-NIMClient.getService(TeamService.class).addMembers(teamId, accounts).setCallback(new RequestCallback<Void>() {
+NIMClient.getService(TeamService.class).addMembers(teamId, accounts)
+    .setCallback(new RequestCallback<Void>() {
             @Override
             public void onSuccess(Void param) {
 				// 返回onSuccess，表示拉人不需要对方同意，且对方已经入群成功了
@@ -1514,7 +1526,7 @@ Observer<Team> teamRemoveObserver = new Observer<Team>() {
 NIMClient.getService(TeamServiceObserver.class).observeTeamRemove(teamRemoveObserver, register);
 ```
 
-群被解散后，群内所有成员都会收到一条消息类型为 `notification` 的 `IMMessage`，带有一个消息附件，类型为 `DismissAttachment`，原群主为该消息的 fromAccount。如果注册了群组被移除的观察者，这个观察者会受到通知。
+群被解散后，群内所有成员都会收到一条消息类型为 `notification` 的 `IMMessage`，带有一个消息附件，类型为 `DismissAttachment`，原群主为该消息的 fromAccount。如果注册了群组被移除的观察者，这个观察者会收到通知。
 
 ### <span id="管理群组权限">管理群组权限</span>
 
@@ -1565,7 +1577,8 @@ NIMClient.getService(TeamService.class).queryMemberList(teamId)
 如果本地群成员资料已过期， SDK 会去服务器获取最新的。 queryTeamMember 还有同步版本 queryTeamMemberBlock 。
 
 ```java
-NIMClient.getService(TeamService.class).queryTeamMember(teamId, account).setCallback(new RequestCallbackWrapper<TeamMember>() {
+NIMClient.getService(TeamService.class).queryTeamMember(teamId, account)
+    .setCallback(new RequestCallbackWrapper<TeamMember>() {
     @Override
     public void onResult(int code, TeamMember member, Throwable exception) {
         ...
@@ -1790,9 +1803,13 @@ NIMClient.getService(MsgService.class).sendCustomNotification(notification);
 ```
 
 发送自定义通知时还可以设置通知配置选项 `CustomNotificationConfig`，目前支持的配置选项有：
+
 1\. enablePush ：该通知是否进行推送（消息提醒）。默认为 true 。
+
 2\. enablePushNick ：该通知是否需要推送昵称（针对iOS客户端有效），如果为true，那么对方收到通知后，iOS端将不显示推送昵称。默认为 false 。
+
 3\. enableUnreadCount ：该通知是否要计入未读数，如果为true，那么对方收到通知后，可以通过读取此配置项决定自己业务的未读计数变更。默认为 true 。
+
 示例如下：
 
 ```java
@@ -1903,7 +1920,7 @@ NIMClient.getService(FriendService.class).ackAddFriendRequest(account, true); //
 
 #### 删除好友
 
-删除好友后，将自动解除双方的好友关系，双方的好友列表中均不存在对方。
+删除好友后，将自动解除双方的好友关系，双方的好友列表中均不存在对方。删除好友后，双方依然可以聊天。
 
 ```java
 NIMClient.getService(FriendService.class).deleteFriend(account)
@@ -1969,7 +1986,7 @@ NIMClient.getService(FriendService.class).updateFriendFields(data, map)
 
 ### <span id="黑名单">黑名单</span>
 
-将用户加入黑名单后，将不在收到对方发来的任何消息或者请求。
+将用户加入黑名单后，将不在收到对方发来的任何消息或者请求。例如：A用户将B用户加入黑名单，B用户发送的消息，A用户将收不到。A用户发送的消息，B用户依然可以看到。
 
 #### 加入黑名单
 
@@ -2049,14 +2066,6 @@ List<String> accounts = NIMClient.getService(FriendService.class).getMuteList();
 网易云信提供了用户资料托管( `NimUserInfo` )，第三方 APP 可以使用也可以自行实现，但必须实现 `UserInfo` 接口。
 
 ### <span id="获取本地用户资料">获取本地用户资料</span>
-
-#### 从本地数据库中获取用户资料
-
-网易云信在登录之后，会同步好友的用户资料数据并保存在本地数据库中。可以通过用户帐号，从本地数据库获取用户资料，该接口为同步接口。代码示例如下：
-
-```java
-NimUserInfo user = NIMClient.getService(UserService.class).getUserInfo(account);
-```
 
 #### 从本地数据库中批量获取用户资料
 
