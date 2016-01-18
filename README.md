@@ -635,7 +635,7 @@ NIMClient.getService(MsgService.class).sendMessage(msg, false);
 
 4\. enablePush ： 该消息是否进行推送（消息提醒）。默认为 true 。
 
-5\. enablePushNick : 该消息是否需要推送昵称（针对iOS客户端有效），如果为true，那么对方收到消息后，iOS端将不显示推送昵称。默认为 true 。
+5\. enablePushNick : 该消息是否需要推送昵称（针对iOS客户端有效），如果为false，那么对方收到消息后，iOS端将不显示推送昵称。默认为 true 。
 
 6\. enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
 
