@@ -415,10 +415,11 @@ public class NimApplication extends Application {
     }
 }
 ```
+> 特别提醒: 在自动登录成功前，调用服务器相关请求接口（由于与云信服务器连接尚未建立成功，会导致发包超时）会报408错误。但可以调用本地数据库相关接口获取本地数据（自动登录的情况下会自动打开相关账号的数据库）。自动登录过程中也会有用户在线状态回调。
 
 ### <span id="监听用户在线状态">监听用户在线状态</span>
 
-登录成功后，SDK 会负责维护与服务器的长连接以及断线重连等工作。当用户在线状态发生改变时，会发出通知。开发者可以通过加入以下代码监听用户在线状态改变：
+登录成功后，SDK 会负责维护与服务器的长连接以及断线重连等工作。当用户在线状态发生改变时，会发出通知。此外，自动登录过程中也会有状态回调。开发者可以通过加入以下代码监听用户在线状态改变：
 
 ```java
 NIMClient.getService(AuthServiceObserver.class).observeOnlineStatus(
@@ -438,6 +439,7 @@ StatusCode status = NIMClient.getStatus();
 ### <span id="数据同步状态通知">数据同步状态通知</span>
 
 登录成功后，SDK 会立即同步数据（用户资料、用户关系、群资料、离线消息、漫游消息等），同步开始和同步完成都会发出通知。
+
 注册登录同步状态通知：
 
 ```java
@@ -454,7 +456,9 @@ NIMClient.getService(AuthServiceObserver.class).observeLoginSyncDataStatus(new O
 ```
 
 同步开始时，SDK 数据库中的数据可能还是旧数据（如果是首次登录，那么 SDK 数据库中还没有数据，重新登录时 SDK 数据库中还是上一次退出时保存的数据）。
+
 同步完成时， SDK 数据库已完成更新。
+
 在同步过程中，SDK 数据的更新会通过相应的 XXXServiceObserver 接口发出数据变更通知。
 
 一般来说， APP 开发者在登录完成后可以开始构建数据缓存：
@@ -506,7 +510,9 @@ NIMClient.getService(AuthService.class).openLocalCache(account);
 ### <span id="消息功能概述">消息功能概述</span>
 
 SDK 提供一套完善的消息传输管理服务，包括收发消息，存储消息，上传下载附件，管理最近联系人等。
+
 SDK 原生支持发送文本，语音，图片，视频，提醒（通知）和地理位置等 6 种类型消息，同时支持用户发送自定义的消息类型。
+
 网易云信消息对象均为 `IMMessage`，不同消息类型以 `MsgTypeEnum` 作区分，消息内容根据类型不同也不一样。文本消息最为简单，消息内容就是 `content` 字符串。其他消息类型均带有一个消息附件对象 `MsgAttachment`，该对象在传输时一般序列化为 json 格式字符串。内建的消息附件主要有以下几种：
 - LocationAttachment： 位置消息附件对象类型。
 - FileAttachment:  文件消息附件对象类型（继承该附件， SDK 在发送消息时将自动上传文件）。
@@ -603,7 +609,9 @@ NIMClient.getService(MsgService.class).sendMessage(msg, false);
 3\. 1.8.0版本后消息提醒支持定制，开发者可以自行定制@消息在通知栏提醒时需要展示的文案。
 
 - 发送消息时可以设置推送文案（最大长度200字节）和自定义推送属性（最大长度2048字节），请注意最大长度的限制，如果超过 SDK 将会抛出 IllegalArgumentException 。
+
 设置了推送文案后，接收方收到消息时，在通知栏提醒中会显示该文案，如果不设置则采用 SDK 默认的文案（当然，通知栏提醒也可以由开发者自行实现）。
+
 自定义推送属性，参数为 Map<String,Object> ，（ SDK 底层会将此 Map 转成 JsonObject 进行传输）， 接收方收到消息时，可以获取此 Map。示例如下：
 
 ```java
@@ -687,6 +695,7 @@ Observer<List<IMMessage>> incomingMessageObserver =
 
 该代码的典型场景为消息对话界面，在界面 `onCreate` 里注册消息接收观察者，在 `onDestroy` 中注销观察者。在收到消息时，判断是否是当前聊天对象的消息，如果是，加入到列表中显示。
 - 多媒体文件下载
+
 如果接收到消息是带文件附件的多媒体消息，SDK 默认会在后台自动下载附件：如果是语音消息，直接下载文件，如果是图片或视频消息，下载缩略图文件。开发者可在 `SDKOptions` 中关闭自动下载，并在用户翻阅到对应消息，再通过以下代码手动下载。如果自动下载或手动下载失败，也可以通过这段代码重新下载：
 
 ```java
@@ -704,6 +713,7 @@ private boolean isOriginImageHasDownloaded(final IMMessage message) {
 AbortableFuture future = NIMClient.getService(MsgService.class).downloadAttachment(message, true);
 ```
 - 获取多媒体文件
+
 多媒体文件收到之后，会进行自动下载或手动下载。需要在下载完成之后，才能获取到多媒体文件路径，并刷新界面。通过监听消息状态的变化，来查看是否下载完成，示例代码如下：
 
 ```
@@ -1048,27 +1058,27 @@ NIMClient.getService(MsgService.class).registerCustomAttachmentParser(new Custom
 
 - 消息本地扩展字段 LocalExtension 的更新接口为 MsgService#updateIMMessage。
 
-## <span id="消息通知栏提醒">消息通知栏提醒</span>
+## <span id="消息提醒">消息提醒</span>
 
 集成网易云信 Android SDK 的 APP 运行起来时，会有个后台进程（push 进程），该进程保持了与云信 Server 的长连接。只要这个 push 进程活着（云信提供安卓保活机制），就能接收云信 Server 推过来的消息，进行通知栏提醒。
 
-### <span id="通知栏提醒场景">通知栏提醒场景</span>
+### <span id="消息提醒场景">消息提醒场景</span>
 
 - 需要消息提醒的场景：
 
-1\. APP 在后台时
+1\. APP 在后台时。
 
-2\. 在前台与 A 聊天但收到非 A 的消息时（与 iOS 不一样）
+2\. 在前台与 A 聊天但收到非 A 的消息时（与 iOS 不一样）。
 
-3\. 在非聊天界面且非最近会话界面时
+3\. 在非聊天界面且非最近会话界面时。
 
 - 不需要消息提醒的场景：
 
-1\. 如果用户正在与某一个人聊天，当这个人的消息到达时，是不应该有通知栏提醒的
+1\. 如果用户正在与某一个人聊天，当这个人的消息到达时，是不应该有通知栏提醒的。
 
-2\. 如果用户停留在最近联系人列表界面，收到消息也不应该有提醒
+2\. 如果用户停留在最近联系人列表界面，收到消息也不应该有通知栏提醒（但会有未读数变更通知）。
 
-因此，为了内置的新消息提醒功能正确工作，开发者需要在进入进出聊天界面以及最近联系人列表界面时，通知 SDK。接口如下：
+云信 SDK 提供内置的消息提醒功能，如需使用，开发者需要在进出聊天界面以及最近联系人列表界面时，通知 SDK。相关接口如下：
 
 ```java
 // 进入聊天界面，建议放在onResume中
@@ -1083,7 +1093,17 @@ NIMClient.getService(MsgService.class).setChattingAccount(MsgService.MSG_CHATTIN
 
 ### <span id="内置消息提醒定制">内置消息提醒定制</span>
 
-#### 本地的全局配置（不可漫游）
+云信 SDK 提供内置的消息提醒（通知栏提醒）功能，并提供以下四个维度的定制，开启/关闭内置的消息提醒、更新消息提醒配置接口如下：
+
+```java
+// 开启/关闭通知栏消息提醒
+NIMClient.toggleNotification(enable);
+
+// 更新消息提醒配置 StatusBarNotificationConfig
+NIMClient.updateStatusBarNotificationConfig(config);
+```
+
+#### 接收消息时本地全局配置（不可漫游）
 
 在 SDKOption 中有通知栏提醒配置选项 StatusBarNotificationConfig：
 * 通知栏弹出时的小图标（ticker），默认用App的图标。
@@ -1092,15 +1112,7 @@ NIMClient.getService(MsgService.class).setChattingAccount(MsgService.MSG_CHATTIN
 * 免打扰（是否开启免打扰、设置免打扰开始结束时间），在免打扰时间段的不进行通知栏提醒。
 * 点击通知栏要跳转到哪里（一般来说会跳转到主界面，然后根据对应消息的发送者，跳转到指定的P2P聊天界面）
 
-```java
-// 开启/关闭通知栏消息提醒
-NIMClient.toggleNotification(enable);
-
-// 更新消息提醒设置
-NIMClient.updateStatusBarNotificationConfig(config);
-```
-
-> 注意: StatusBarNotificationConfig 中的notificationEntrance 字段指明了点击通知需要跳转到的Activity，Activity启动后可以获取收到的消息：
+注意: StatusBarNotificationConfig 中的notificationEntrance 字段指明了点击通知需要跳转到的Activity，Activity启动后可以获取收到的消息：
 
 ``` java
 ArrayList<IMMessage> messages = (ArrayList<IMMessage>)
@@ -1109,21 +1121,24 @@ getIntent().getSerializableExtra(NimIntent.EXTRA_NOTIFY_CONTENT); // 可以获�
 
 #### 可漫游的消息提醒配置
 
-- 个人消息提醒配置（可以漫游）
+- 个人消息提醒配置（支持漫游）
+
 支持对用户开启或关闭消息提醒，关闭后，收到该用户发来的消息时，不再进行SDK内置的通知栏消息提醒。
 
 ```java
 NIMClient.getService(FriendService.class).setMessageNotify(account, checkState).setCallback(new RequestCallback<Void>() {});
 ```
 
-- 群消息提醒配置（可以漫游）
-群聊消息提醒可以单独打开或关闭，关闭提醒之后，用户仍然会收到这个群的消息，如果使用SDK内置的消息提醒，用户收到新消息后不会再有通知栏提醒。如果开发者自行实现通知栏提醒，可通过 Team 的 mute 接口获取是否开启消息提醒，并决定是不是要显示通知。开发者可通过调用以下接口打开或关闭群聊消息提醒：
+- 群消息提醒配置（支持漫游）
+
+群聊消息提醒可以单独打开或关闭，关闭提醒之后，用户仍然会收到这个群的消息，但是SDK内置的通知栏提醒将不会触发。如果开发者自行实现通知栏提醒，可通过 Team 的 mute 接口获取是否开启消息提醒，并决定是不是要显示通知。
+开发者可通过调用以下接口打开或关闭群聊消息提醒：
 
 ```java
 NIMClient.getService(TeamService.class).muteTeam(teamId, mute);
 ```
 
-#### 自定义提醒内容
+#### 接收消息时定制提醒内容
 
 针对不同的消息类型，通知栏显示不同的提醒内容。按照以下优先级显示：
 
@@ -1149,7 +1164,6 @@ public class NimApplication extends Application {
         
         // 定制通知栏提醒文案（可选，如果不定制将采用SDK默认文案）
         options.messageNotifierCustomization = messageNotifierCustomization;
-    
         return options;
     }
     
@@ -1168,26 +1182,38 @@ public class NimApplication extends Application {
 ```
 
 3\. 如果上述两点都不定制(返回null)，将显示默认提醒内容：
+
 文本消息：文本消息内容。
+
 文件消息：{说话者}发来一条文件消息
+
 图片消息：{说话者}发来一条图片消息
+
 语音消息：{说话者}发来一条语音消息
+
 视频消息：{说话者}发来一条视频消息
+
 位置消息：{说话者}分享了一个地理位置
+
 通知消息：{说话者}: 通知消息
+
 提醒消息：{说话者}: 提醒消息
+
 自定义消息：{说话者}: 自定义消息
+
 除文本消息外，开发者可以通过  `NimStrings` 类修改这些默认提醒内容。
 
-#### 发送消息时配置消息提醒
+#### 发送消息时指定消息提醒
 
 发送消息时可以设置消息配置选项 CustomMessageConfig，可以设定是否需要推送，是否需要计入未读数等：
+
 enablePush ： 该消息是否进行推送（消息提醒）。默认为 true 。
+
 enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
 
-### <span id="开发者自行实现消息提醒">开发者自行实现消息提醒</span>
+### <span id="自行实现消息提醒">自行实现消息提醒</span>
 
-如果 SDK 内建的消息提醒不能满足你的需求，你可以关闭内建消息提醒，然后自己去实现。收到新消息时，上层有两种方式得到通知，然后给出通知栏提醒：
+如果 SDK 内建的消息提醒不能满足你的需求，你可以关闭 SDK 内置的消息提醒，自行实现。收到新消息时，上层有两种方式得到通知，然后给出通知栏提醒：
 
 1\. 添加消息接收观察者，在观察者的 `onEvent` 中实现状态栏提醒。注册注销方式详见[接收消息](#接收消息)一节。注意：只有 SDK 1.4.0 及以上版本才能使用该方式，1.4.0 以下的版本使用此方式有可能会漏掉通知。
 
@@ -1198,7 +1224,9 @@ enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那�
 ### <span id="本地记录">本地记录</span>
 
 - 查询消息历史
+
 SDK 提供了一个根据锚点查询本地消息历史记录的接口，根据提供的方向 (direct)，查询比 anchor 更老 (QUERY\_OLD) 或更新 (QUERY\_NEW) 的最靠近anchor 的 limit 条数据。调用者可使用 asc 参数指定结果排序规则，结果使用 time 作为排序字段。
+
 当进行首次查询时，锚点可以用使用 `MessageBuilder#createEmptyMessage` 接口生成。查询结果不包含锚点。
 
 ```java
@@ -1252,6 +1280,7 @@ NIMClient.getService(MsgService.class).queryMessageListByUuidBlock(uuids);
 ```
 
 - 通过消息类型查询消息
+
 通过消息类型从本地消息数据库中查询消息历史。查询范围由 msgTypeEnum 参数和 anchor 的 sessionId 决定。该接口查询方向为从后往前。以锚点 anchor 作为起始点（不包含锚点），往前查询最多 limit 条消息。
 
 ```
@@ -1397,10 +1426,15 @@ player.stop();
 ### <span id="群组功能概述">群组功能概述</span>
 
 网易云信 SDK 提供了普通群 (`TeamTypeEnum#Normal`)，以及高级群 (`TeamTypeEnum#Advanced`)两种形式的群聊功能。高级群拥有更多的权限操作，两种群聊形式在共有操作上保持了接口一致。在群组中，当前会话的 ID 就是群组的 ID。
+
 - 普通群
+
 开发手册中所提及的普通群都等同于Demo中的讨论组。普通群没有权限操作，适用于快速创建多人会话的场景。每个普通群只有一个管理员。管理员可以对普通群进行增减员操作，普通成员只能对普通群进行增员操作。在添加新成员的时候，并不需要经过对方同意。
+
 - 高级群
+
 高级群在权限上有更多的限制，权限分为群主、管理员、以及群成员。在添加成员的时候需要对方接受邀请。
+
 - 群操作权限对比
 
 | 权限   | 普通群             | 高级群     |
@@ -1434,7 +1468,9 @@ NIMClient.getService(TeamService.class).muteTeam(teamId, mute);
 ### <span id="获取群组">获取群组</span>
 
 SDK 提供了两个获取自己加入的所有群的列表的接口，一个是获取所有群（包括高级群和普通群）的接口，另一个是根据类型获取列表的接口。开发者可根据实际产品需求选择使用。
+
 注意：这里获取的是所有我加入的群列表（退群、被移除群后，将不在返回列表中），如果需要自己退群或者被移出群的群资料，请使用下面的 queryTeam 接口。
+
 获取所有我加入的群：
 
 ```java
@@ -1477,6 +1513,7 @@ NIMClient.getService(TeamService.class).queryTeam(teamId).setCallback(new Reques
 ### <span id="创建群组">创建群组</span>
 
 网易云信群组分为两类：普通群和高级群，两种群组的消息功能都是相同的，区别在于管理功能。普通群所有人都可以拉人入群，除群主外，其他人都不能踢人；固定群则拥有完善的成员权限体系及管理功能。创建群的接口相同，传入不同的类型参数即可。
+
 注意：群扩展字段最大长度为1024字节，若超限，服务器将返回414。
 
 ```java
@@ -1534,7 +1571,11 @@ NIMClient.getService(TeamService.class).addMembers(teamId, accounts)
 ```
 
 普通群可直接将用户拉入群聊，拉人成功，直接返回onSuccess。
-高级群不能直接拉入，发出邀请成功会返回onFailed，并且返回码为810（这是一个特例，与其他接口成功直接返回 onSuccess 有所不同）。被邀请的人会收到一条系统通知 (`SystemMessage`)，类型为 `SystemMessageType#TeamInvite`。用户接受该邀请后，才真正入群。
+
+高级群不能直接拉入，发出邀请成功会返回onFailed，并且返回码为810（这是一个特例，与其他接口成功直接返回 onSuccess 有所不同）。
+
+被邀请的人会收到一条系统通知 (`SystemMessage`)，类型为 `SystemMessageType#TeamInvite`。用户接受该邀请后，才真正入群。
+
 用户入群（普通群被拉人，高级群接受邀请）后，在收到之后的第一条消息时，群内所有成员（包括入群者）会收到一条入群消息，附件类型为 `MemberChangeAttachment`。
 
 ### <span id="踢人出群">踢人出群</span>
@@ -1616,7 +1657,9 @@ NIMClient.getService(TeamService.class)
 ```
 
 任意一管理员操作后，其他管理员再操作都会失败。
+
 如果同意入群申请，群内所有成员(包括申请者)都会收到一条消息类型为 `notification` 的 `IMMessage`，附件类型为 `MemberChangeAttachment`。
+
 如果拒绝申请，申请者会收到一条系统通知，类型为 `SystemMessageType#RejectTeamApply`。
 
 ### <span id="编辑群组资料">编辑群组资料</span>
@@ -1788,6 +1831,7 @@ List<SystemMessage> temps = NIMClient.getService(SystemMessageService.class)
 ```
 
 - 设置系统通知状态
+
 系统通知状态枚举见 `SystemMessageStatus`，目前除了提供了未处理、已通过、已拒绝、已忽略、已过期这五种状态之外，提供了五个自定义扩展类型，供第三方开发者使用。
 在用户处理过系统通知之后，调用此函数更新系统通知状态。
 
@@ -1901,6 +1945,7 @@ NIMClient.getService(MsgService.class).sendCustomNotification(notification);
 ```
 
 另外一种保证接收方一定会收到，如果接收方当前在线，会立即收到，如果当前不在线，则在下次登录后立即收到。如果接收方上次登录是 iOS 版本，还会收到 APNS 推送通知。
+
 下面做了一个简单的示例：
 
 ```java
@@ -1959,6 +2004,7 @@ NIMClient.getService(MsgService.class).sendCustomNotification(command);
 #### <span id="接收自定义通知">接收自定义通知</span>
 
 上层有两种方式接收自定义通知，一是通过添加通知接收观察者的，二是通过广播的方式接收。SDK 从版本 1.4.0 开始，推荐使用第一种方式接收。从这个版本起，收到消息后就会激活 UI 主进程，并通知到已注册的观察者。只要在主进程的入口添加自定义通知的观察者，就能收到该通知。
+
 添加自定义通知的接收观察者代码如下：
 
 ```java
@@ -2098,6 +2144,7 @@ boolean isMyFriend = NIMClient.getService(FriendService.class).isMyFriend(accoun
 #### 更新好友关系
 
 目前支持更新好友的备注名和好友关系扩展字段，见 `FriendFieldEnum`。
+
 注意：备注名最长128个字符；扩展字段需要传入 Map<String,Object>， SDK 会负责转成Json String，最大长度256字符。
 
 ```java
@@ -2259,6 +2306,7 @@ SDK对部分字段进行格式校验：
 更新头像可选方案：
 - 先将头像图片上传至网易云信云存储上（见 `NosService` ) ，上传成功后可以得到 url 。
 - 更新个人资料的头像字段，保存 url 。
+
 此外，开发者也可以自行存储头像，仅将 url 更新到个人资料上。
 
 #### 监听用户资料变更
@@ -2384,7 +2432,9 @@ Observer<AVChatOnlineAckEvent> onlineAckObserver = new Observer<AVChatOnlineAckE
 #### 同意接听（被叫方）
 
 当监听到来电后启动通话界面，被叫方可以选择接听或者拒绝。当选择接听时，如果是视频通话，那么同样需要传入 `VideoChatParam`，SDK 会自动开启音视频设备，建立通话连接。
+
 在某些特殊情况下，有可能音视频启动失败，此时会回调 onFailed ，错误码-1表示初始化引擎失败。
+
 注意：由于音视频引擎析构需要时间，请尽可能保证上一次通话挂断到本次电话接听时间间隔在2秒以上，否则有可能在接听时出现初始化引擎失败（code = -1），此问题后期会进行优化。
 
 ```java
@@ -3040,33 +3090,41 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 ### <span id="通知类消息">通知类消息</span>
 
 - 概念
+
 属于会话中的一种消息，有在线、离线、漫游。继承 NotificationAttachment，目前用于（已操作完成的）群通知事件。包含 MemberChangeAttachment , UpdateTeamAttachment , LeaveTeamAttachment 和 DismissAttachment 。没有通知栏提醒（如有需要，第三方自行实现）。
 
 - 使用场景
+
 一般位于聊天界面的中间。例如，群名称更新，某某某退出了群聊等。
 
 ### <span id="自定义消息">自定义消息</span>
 
 - 概念
+
 属于会话中的一种消息，有在线、离线、漫游、通知栏提醒（文案需要自行定制）。主要是通过 IMMessage 的 setAttachment 来实现。
 
 - 使用场景
+
 一般与普通文本，语音消息相同。位于聊天界面的左右两侧。例如，猜拳、贴图、阅后即焚均可以采用自定义消息来实现。
 
-### <span id="（内置）系统通知">（内置）系统通知</span>
+### <span id="系统通知">系统通知</span>
 
 - 概念
-属于一种通知类型。主要包括入群申请、入群邀请、好友验证、好友添加和删除。只有在线和离线，没有漫游。没有通知栏提醒（如有需要，第三方自行实现）。
+
+属于云信内置的系统通知，包括入群申请、入群邀请、好友验证、好友添加和删除。只有在线和离线，没有漫游。没有通知栏提醒（如有需要，第三方自行实现）。
 
 - 使用场景
+
 通常在验证消息列表中展现。
 
-### <span id="自定义（系统）通知">自定义（系统）通知</span>
+### <span id="自定义通知">自定义通知</span>
 
 - 概念
-属于一种通知类型。是一种全局的通知类型。只有在线和离线，没有漫游，没有通知栏提醒（第三方自行实现）。
+
+提供给第三方自定义的全局的通知类型。只有在线和离线，没有漫游，没有通知栏提醒（第三方自行实现）。
 
 - 使用场景
+
 聊天双方处于P2P聊天界面时，显示的“正在输入通知”。
 
 ## <span id="API 文档">API 文档</span>
