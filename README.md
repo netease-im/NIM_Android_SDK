@@ -44,15 +44,18 @@ libs
 │   └── librts_network.so
 ├── nim-sdk-1.0.0.jar
 ├── netty-4.0.23-for-yx.final.jar
-└── cosinesdk.jar (Android 后台保活保活需要)
+├── nrtc-sdk-1.0.0.jar（音视频需要）
+└── cosinesdk.jar (Android 后台保活需要)
 ```
 
 将这些文件拷贝到你的工程的 libs 目录下，即可完成配置。
 
 以上文件列表中，nim-sdk-1.0.0.jar (版本号可能会不同)为网易云信 SDK，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
 
-> 注意：如果你只需要 SDK 的基础功能（不含音视频及实时会话服务），则 so 库只需要 libne_audio.so 和 libcosine.so 两个，没有 libnio.so、librtc\*.so、librts\*
-.so；如果需要音视频功能，so 库需要加上 libnio.so及 librtc\*.so；如果需要实时会话服务，so 库需要加上 libnio.so、librts\*.so。此外，如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ( AndroidManifest.xml 文件中相关的安卓保活的配置也可以删去)。 
+> 注意：如果你只需要 SDK 的基础功能（不含音视频及实时会话服务），则 so 库只需要 libne_audio.so 和 libcosine.so 两个，没有 librtc\*.so、librts\*.so，可以去掉 nrtc-sdk.1.0.0.jar；
+如果需要音视频功能，so 库需要加上 librtc\*.so，还需加上 nrtc-sdk.1.0.0.jar；
+如果需要实时会话（白板）服务，so 库需要加上librts\*.so；
+如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ( AndroidManifest.xml 文件中相关的安卓保活的配置也可以删去)。 
 
 如果你的 APP 的 libs 里面只包含 armeabi 一个文件夹，为了保证在 arm-v7a 上有较好的性能，以及兼容各个平台，可将各目录下的 so 文件名改为原文件名加上"_{arch_of_cpu}"，然后统一放到 armeabi 目录下，SDK 也会加载到正确版本的so库。改名后的目录结构如下：
 
@@ -61,25 +64,23 @@ libs
 ├── armeabi
 │   ├── libne_audio_armeabi.so
 │   ├── libcosine_armeabi.so
-│   ├── libnio_armeabi.so
 │   ├── librtc_engine_armeabi.so
 │   ├── librtc_network_armeabi.so
 │   ├── librts_network_armeabi.so
 │   ├── libne_audio_armeabi-v7a.so
 │   ├── libcosine_armeabi-v7a.so
-│   ├── libnio_armeabi-v7a.so
 │   ├── librtc_engine_armeabi-v7a.so
 │   └── librtc_network_armeabi-v7a.so
 │   ├── librts_network_armeabi-v7a.so
 ├── x86(如果不考虑支持x86，可不包含)
 │   ├── libne_audio_x86.so
 │   ├── libcosine_x86.so
-│   ├── libnio_x86.so
 │   ├── librtc_engine_x86.so
 │   └── librtc_network_x86.so
 │   ├── librts_network_x86.so
 ├── nim-sdk-1.0.0.jar
 ├── netty-4.0.23-for-yx.final.jar
+├── nrtc-sdk-1.1.0.jar
 └── cosinesdk.jar
 ```
 
@@ -313,7 +314,8 @@ public class NimApplication extends Application {
 	    // 配置是否需要预下载附件缩略图，默认为 true
 	    options.preloadAttach = true;
 
-	    // 配置附件缩略图的尺寸大小，该值一般应根据屏幕尺寸来确定， 默认值为 Screen.width / 2
+	    // 配置附件缩略图的尺寸大小。表示向服务器请求缩略图文件的大小
+	    // 该值一般应根据屏幕尺寸来确定， 默认值为 Screen.width / 2
 	    options.thumbnailSize = ${Screen.width} / 2;
 
         // 用户资料提供者, 目前主要用于提供用户资料，用于新消息通知栏中显示消息来源的头像和昵称
@@ -358,9 +360,7 @@ public class NimApplication extends Application {
 
 ## <span id="登录与登出">登录与登出</span>
 
-### <span id="登录">登录</span>
-
-#### <span id="手动登录">手动登录</span>
+### <span id="手动登录">手动登录</span>
 
 一般 APP 在首次登录、切换帐号登录、注销重登时需要手动登录，开发者需要调用 `AuthService` 提供的 `login` 接口主动发起登录请求。该接口返回类型为 `AbortableFuture`，允许用户在后面取消登录操作。如果服务器一直没有响应，30 秒后 RequestCallback 的 onFailed 会被调用，参数为 408 （网络连接超时）。
 
@@ -379,7 +379,9 @@ public class LoginActivity extends Activity {
 ```
 登录成功后，可以将用户登录信息 LoginInfo 信息保存到本地，下次启动APP时，读取本地保存的 LoginInfo 进行自动登录。
 
-#### <span id="自动登录">自动登录</span>
+> 特别提醒: 登录成功之前，调用服务器相关请求接口（由于与云信服务器连接尚未建立成功，会导致发包超时）会报408错误；调用本地数据库相关接口（手动登录的情况下数据库未打开），会报1000错误，建议用户在登录成功之后，再进行相关接口调用。
+
+### <span id="自动登录">自动登录</span>
 
 如果上次登录已经存在用户登录信息，那么在初始化 SDK 时传入 `LoginInfo`，SDK 后台会自动登录，并在登录发起前即打开相关数据库，供上层调用。开发者此时无需再手动调用登录接口，可以跳过登录界面直接进入主界面。
 
@@ -450,6 +452,7 @@ NIMClient.getService(AuthServiceObserver.class).observeLoginSyncDataStatus(new O
     }
 }, register);
 ```
+
 同步开始时，SDK 数据库中的数据可能还是旧数据（如果是首次登录，那么 SDK 数据库中还没有数据，重新登录时 SDK 数据库中还是上一次退出时保存的数据）。
 同步完成时， SDK 数据库已完成更新。
 在同步过程中，SDK 数据的更新会通过相应的 XXXServiceObserver 接口发出数据变更通知。
@@ -458,12 +461,44 @@ NIMClient.getService(AuthServiceObserver.class).observeLoginSyncDataStatus(new O
 - 登录完成后立即从 SDK 读取数据构建缓存，此时加载到的可能是旧数据；
 - 在 Application 的 onCreate 中注册 XXXServiceObserver 来监听数据变化，那么在同步过程中， APP 会收到数据更新通知，此时直接更新缓存。当同步完成时，缓存也就构建完成了。
 
+### <span id="多端登录">多端登录</span>
+
+登录成功后，可以注册多端登录状态观察者。当有其他端登录或者注销时，会通过此接口通知到UI。登录成功后，如果有其他端登录着（在线），也会发出通知。返回的 `OnlineClient` 能够获取当前同时在线的客户端类型和操作系统。
+
+```java
+NIMClient.getService(AuthServiceObserver.class).observeOtherClients(new Observer<List<OnlineClient>>() { ... }, true);
+```
+
+如果需要主动踢掉当前同时在线的其他端, 需要传入 `OnlineClient`：
+
+```java
+NIMClient.getService(AuthService.class).kickOtherClient(onlineClient).setCallback(new RequestCallback<Void>() { ... });
+```
+
+云信内置多端登录互踢策略为：移动端( Android 、 iOS )互踢，桌面端( PC 、 Web )互踢，移动端和桌面端共存（ 可以采用上述 kickOtherClient 主动踢下共存的其他端）。
+
+如果当前的互踢策略无法满足业务需求的话，可以联系我们取消内置互踢，根据多端登录的回调和当前的设备列表，判断本设备是否需要被踢出。如果需要踢出，直接调用登出接口并在界面上给出相关提示即可。
+
 ### <span id="登出">登出</span>
 
 如果用户手动登出，不再接收消息和提醒，开发者可以调用 logout 方法，该方法没有回调。
 
+> 注意: 登出操作，不要放在 Activity(Fragment) 的 onDestroy 方法中。
+
 ```java
 NIMClient.getService(AuthService.class).logout();
+```
+
+### <span id="离线查看数据">离线查看数据</span>
+
+对于一些弱IM场景，需要在登录成功前或者未登录状态下访问指定账号的数据（聊天记录、好友资料等）。 SDK 提供两种方案：
+
+1. 使用自动登录。在登录成功前，可以访问 SDK 服务来读取本地数据（但不能发送数据）。
+
+2. 使用 AuthService#openLocalCache 接口打开本地数据，这是个同步方法，打开后即可读取 SDK 数据库中的记录。可以通过注销来切换账号查看本地数据。
+
+```java
+NIMClient.getService(AuthService.class).openLocalCache(account);
 ```
 
 ## <span id="基础消息功能">基础消息功能</span>
@@ -558,6 +593,14 @@ msg.setRemoteExtension(data); // 设置服务器扩展字段
 NIMClient.getService(MsgService.class).sendMessage(msg, false);
 ```
 
+利用扩展字段开发者可以实现一些特殊场景，例如群@功能：
+
+1\. 当发送群消息@某人的时候，可以通过扩展字段带上被@的账号列表发送出去；群成员收到群消息时，查看扩展字段的@账号列表里有没有自己，如果有，则界面上做被@的提醒。
+
+2\. 此外，最近会话列表项也提供扩展标签和扩展字段，可以满足开发者在最近会话列表中做@提醒的需求：
+在监听到最新联系人有更新时，可以根据最近一条消息的 ID 查询出该条消息，查看扩展字段是否包含@账号列表，如果包含自己，可以在扩展字段上做一个标记，如果有新消息到来（未进入聊天界面查看时），要继续保持最近会话列表里面有@提醒，就可以参考扩展字段的标记，做界面的上被@的提醒。
+
+3\. 1.8.0版本后消息提醒支持定制，开发者可以自行定制@消息在通知栏提醒时需要展示的文案。
 
 - 发送消息时可以设置推送文案（最大长度200字节）和自定义推送属性（最大长度2048字节），请注意最大长度的限制，如果超过 SDK 将会抛出 IllegalArgumentException 。
 设置了推送文案后，接收方收到消息时，在通知栏提醒中会显示该文案，如果不设置则采用 SDK 默认的文案（当然，通知栏提醒也可以由开发者自行实现）。
@@ -604,7 +647,7 @@ NIMClient.getService(MsgService.class).sendMessage(msg, false);
 
 ```java
 // 监听消息发送状态的变化通知
-NIMClient.getService(MsgServiceObserver.class).observeMsgStatus(
+NIMClient.getService(MsgServiceObserve.class).observeMsgStatus(
 	new Observer<IMMessage> {
 		public void onEvent(IMMessage message) {
 			// 参数为有状态发生改变的消息对象，其 msgStatus 和 attachStatus 均为最新状态。
@@ -614,7 +657,7 @@ NIMClient.getService(MsgServiceObserver.class).observeMsgStatus(
 }, true);
 	
 // 如果发送的多媒体文件消息，还需要监听文件的上传进度。
-NIMClient.getService(MsgServiceObserver.class).observerAttachProgress(
+NIMClient.getService(MsgServiceObserve.class).observerAttachProgress(
 	new Observer(AttachProgress progress) {
 		public void onEvent(AttachProgress progress) {
 			// 参数为附件的传输进度，可根据 progress 中的 uuid 查找具体的消息对象，更新 UI
@@ -623,8 +666,8 @@ NIMClient.getService(MsgServiceObserver.class).observerAttachProgress(
 	}, true);
 ```
 
-此外，如果第三方APP想保存消息到本地，可以调用 MsgService#saveMessageToLocal ，该接口保存消息到本地数据库，但不发送到服务器端。
-该接口将消息保存到数据库后，如果需要通知到UI，可将参数 notify 设置为 true ，此时会触发 MsgServiceObserve#observeReceiveMessage 通知。
+此外，如果第三方APP想保存消息到本地，可以调用 MsgService#saveMessageToLocal ，该接口保存消息到本地数据库，但不发送到服务器端。该接口将消息保存到数据库后，如果需要通知到UI，可将参数 notify 设置为 true ，此时会触发 MsgServiceObserve#observeReceiveMessage 通知。
+此接口在 1.8.0 版本及以上支持设置是否计入未读数（默认计入未读数），若需要不计入未读数，传入的 IMMessage 中的 CustomMessageConfig 的 enableUnreadCount 需要设置为 false 。
 
 ### <span id="接收消息">接收消息</span>
 
@@ -670,23 +713,21 @@ NIMClient.getService(MsgServiceObserve.class).observeMsgStatus(statusObserver, r
 private Observer<IMMessage> statusObserver = new Observer<IMMessage>() {
         @Override
         public void onEvent(IMMessage msg) {
-            if (!msg.isTheSame(message) || isDestroyedCompatible()) {
-                return;
-            }
-            if (msg.getAttachStatus() == AttachStatusEnum.transferred && isOriginImageHasDownloaded(msg)) {
-                onDownloadSuccess(msg);
-            } else if (msg.getAttachStatus() == AttachStatusEnum.fail) {
-                onDownloadFailed();
-            }
+            // 1、根据sessionId判断是否是自己的消息
+            // 2、更改内存中消息的状态
+            // 3、刷新界面
         }
     };
 ```
 
 ### <span id="最近会话">最近会话</span>
 
-最近会话，也可称作会话列表或者最近联系人列表，它记录了与用户最近有过会话的联系人信息，包括联系人帐号、联系人类型、最近一条消息的时间、消息状态、消息内容、未读条数等信息，并提供了一个扩展标签 tag （用于做联系人置顶、最近会话列表排序等扩展用途），详见 `RecentContact`。
+最近会话 `RecentContact` ，也可称作会话列表或者最近联系人列表，它记录了与用户最近有过会话的联系人信息，包括联系人帐号、联系人类型、最近一条消息的时间、消息状态、消息内容、未读条数等信息。
+`RecentContact` 中还提供了一个扩展标签 tag（用于做联系人置顶、最近会话列表排序等扩展用途）和一个扩展字段 extension （是一个Map，可用于做群@等扩展用途），并支持动态的更新这两个字段。
 最近会话列表由 SDK 维护并提供查询、监听变化的接口，只要与某个用户或者群组有产生聊天（自己发送消息或者收到消息）， SDK 会自动更新最近会话列表并通知上层，开发者无需手动更新。
 某些场景下，开发者可能需要手动向最近会话列表中插入一条会话项（即插入一个最近联系人），例如：在创建完高级群时，需要在最近会话列表中显示该群的会话项。由创建高级群完成时并不会收到任何消息， SDK 并不会立即更新最近会话，此时要满足需求，可以在创建群成功的回调中，插入一条本地消息， 即调用 MsgService#saveMessageToLocal。
+
+> 注意：最近会话是本地的，不会漫游。漫游与消息相关，与最近会话无关。
 
 - 获取最近会话列表：
 
@@ -999,16 +1040,57 @@ public class CustomAttachParser implements MsgAttachmentParser {
 NIMClient.getService(MsgService.class).registerCustomAttachmentParser(new CustomAttachParser()); // 监听的注册，必须在主进程中。
 ```
 
-### <span id="消息提醒">消息提醒</span>
+### <span id="更新消息">更新消息</span>
 
-SDK 内置了新消息状态栏提醒功能，开发者可以在 `SDKOptions` 中开启或关闭，以及设置铃声/振动提醒，免打扰时段等选项。各选项配置可参见[在线API文档](http://dev.netease.im/doc/android/index.html) 中 StatusBarNotificationConfig。
-注意：配置中 notificationEntrance 字段指明了点击通知需要跳转到的 Activity ， Activity 启动后可以获取收到的消息：
+目前仅提供消息状态和消息本地扩展字段的更新（更新 SDK 数据库中对应字段的值）：
+
+- 消息状态、消息附件状态、消息附件内容的更新接口为 MsgService#updateIMMessageStatus。
+
+- 消息本地扩展字段 LocalExtension 的更新接口为 MsgService#updateIMMessage。
+
+## <span id="消息通知栏提醒">消息通知栏提醒</span>
+
+集成网易云信 Android SDK 的 APP 运行起来时，会有个后台进程（push 进程），该进程保持了与云信 Server 的长连接。只要这个 push 进程活着（云信提供安卓保活机制），就能接收云信 Server 推过来的消息，进行通知栏提醒。
+
+### <span id="通知栏提醒场景">通知栏提醒场景</span>
+
+- 需要消息提醒的场景：
+
+1\. APP 在后台时
+
+2\. 在前台与 A 聊天但收到非 A 的消息时（与 iOS 不一样）
+
+3\. 在非聊天界面且非最近会话界面时
+
+- 不需要消息提醒的场景：
+
+1\. 如果用户正在与某一个人聊天，当这个人的消息到达时，是不应该有通知栏提醒的
+
+2\. 如果用户停留在最近联系人列表界面，收到消息也不应该有提醒
+
+因此，为了内置的新消息提醒功能正确工作，开发者需要在进入进出聊天界面以及最近联系人列表界面时，通知 SDK。接口如下：
 
 ```java
-ArrayList<IMMessage> messages = (ArrayList<IMMessage>) getIntent().getSerializableExtra(NimIntent.EXTRA_NOTIFY_CONTENT);
+// 进入聊天界面，建议放在onResume中
+NIMClient.getService(MsgService.class).setChattingAccount(account， sessionType);
+
+// 进入最近联系人列表界面，建议放在onResume中
+NIMClient.getService(MsgService.class).setChattingAccount(MsgService.MSG_CHATTING_ACCOUNT_ALL, SessionTypeEnum.None);
+
+// 退出聊天界面或离开最近联系人列表界面，建议放在onPause中
+NIMClient.getService(MsgService.class).setChattingAccount(MsgService.MSG_CHATTING_ACCOUNT_NONE, SessionTypeEnum.None);
 ```
 
-同时，SDK 也提供了更新消息提醒配置的接口：
+### <span id="内置消息提醒定制">内置消息提醒定制</span>
+
+#### 本地的全局配置（不可漫游）
+
+在 SDKOption 中有通知栏提醒配置选项 StatusBarNotificationConfig：
+* 通知栏弹出时的小图标（ticker），默认用App的图标。
+* 是否需要响铃（指定铃声）
+* 是否需要震动
+* 免打扰（是否开启免打扰、设置免打扰开始结束时间），在免打扰时间段的不进行通知栏提醒。
+* 点击通知栏要跳转到哪里（一般来说会跳转到主界面，然后根据对应消息的发送者，跳转到指定的P2P聊天界面）
 
 ```java
 // 开启/关闭通知栏消息提醒
@@ -1018,48 +1100,98 @@ NIMClient.toggleNotification(enable);
 NIMClient.updateStatusBarNotificationConfig(config);
 ```
 
-针对不同的消息类型，通知栏显示不同的提醒内容。如果发送方设置了推送文案，那么通知栏显示该推送文案（ SDK 1.7.0 及以上版本支持）。如果没有，将显示默认提醒内容：
-- 文本消息：文本消息内容。
-- 文件消息：{说话者}发来一条文件消息
-- 图片消息：{说话者}发来一条图片消息
-- 语音消息：{说话者}发来一条语音消息
-- 视频消息：{说话者}发来一条视频消息
-- 位置消息：{说话者}分享了一个地理位置
-- 通知消息：{说话者}: 通知消息
-- 提醒消息：{说话者}: 提醒消息
-- 自定义消息：{说话者}: 自定义消息
-除文本消息外，开发者可以通过  `NimStrings` 类修改这些默认提醒内容。
+> 注意: StatusBarNotificationConfig 中的notificationEntrance 字段指明了点击通知需要跳转到的Activity，Activity启动后可以获取收到的消息：
 
-如果开发者需要为每条消息指定具体的提醒内容，而不是显示默认内容，有以下两种接口：
+``` java
+ArrayList<IMMessage> messages = (ArrayList<IMMessage>)
+getIntent().getSerializableExtra(NimIntent.EXTRA_NOTIFY_CONTENT); // 可以获取消息的发送者，跳转到指定的单聊、群聊界面。
+```
 
-1\. SDK 1.7.0 及以上版本，开发者可以调用 `IMMessage` 的 `setPushContent` 接口；
+#### 可漫游的消息提醒配置
 
-2\. 对于低于 1.7.0 的早期版本，开发者可以调用 `IMMessage` 的 `setContent` 接口。对于文本消息，该接口会同时修改消息内容和提醒内容，对于其他格式消息，该接口仅修改提醒内容。如果接收方是 iOS 客户端，消息推送的内容遵从相同的规则：如果设置了 `setContent` 字段，则使用设置的字符串作为推送内容，否则使用默认提醒内容。
-
-如果用户正在与某一个人聊天，当这个人的消息到达时，是不应该有状态栏提醒的，如果用户停留在最近联系人列表界面，收到消息也不应该有提醒，因此，为了内置的新消息提醒功能正确工作，开发者需要在进入进出聊天界面以及最近联系人列表界面时，通知 SDK。接口如下：
+- 个人消息提醒配置（可以漫游）
+支持对用户开启或关闭消息提醒，关闭后，收到该用户发来的消息时，不再进行SDK内置的通知栏消息提醒。
 
 ```java
-// 进入聊天界面
-NIMClient.getService(MsgService.class).setChattingAccount(
-	account, 
-	sessionType
-	);
-// 进入最近联系人列表界面
-NIMClient.getService(MsgService.class).setChattingAccount(
-	MsgService.MSG_CHATTING_ACCOUNT_ALL, 
-	SessionTypeEnum.None
-	);
-// 退出聊天界面或最近联系人列表界面
-NIMClient.getService(MsgService.class).setChattingAccount(
-	MsgService.MSG_CHATTING_ACCOUNT_NONE, 
-	SessionTypeEnum.None
-	);
+NIMClient.getService(FriendService.class).setMessageNotify(account, checkState).setCallback(new RequestCallback<Void>() {});
 ```
+
+- 群消息提醒配置（可以漫游）
+群聊消息提醒可以单独打开或关闭，关闭提醒之后，用户仍然会收到这个群的消息，如果使用SDK内置的消息提醒，用户收到新消息后不会再有通知栏提醒。如果开发者自行实现通知栏提醒，可通过 Team 的 mute 接口获取是否开启消息提醒，并决定是不是要显示通知。开发者可通过调用以下接口打开或关闭群聊消息提醒：
+
+```java
+NIMClient.getService(TeamService.class).muteTeam(teamId, mute);
+```
+
+#### 自定义提醒内容
+
+针对不同的消息类型，通知栏显示不同的提醒内容。按照以下优先级显示：
+
+1\. 发送方可以设置了推送文案，如果设置，那么通知栏显示该推送文案。
+
+对于 SDK 1.7.0 及以上版本，开发者可以调用 `IMMessage` 的 `setPushContent` 接口设置推送文案；
+
+对于低于 1.7.0 的早期版本，开发者可以调用 `IMMessage` 的 `setContent` 接口设置推送文案：对于文本消息，该接口会同时修改消息内容和提醒内容，对于其他格式消息，该接口仅修改提醒内容。如果接收方是 iOS 客户端，消息推送的内容遵从相同的规则：如果设置了 `setContent` 字段，则使用设置的字符串作为推送内容，否则使用默认提醒内容。
+
+2\. （ SDK 1.8.0 及以上版本支持）本地定制的通知栏提醒文案，目前支持配置Ticker文案（通知栏弹框条显示内容）和通知内容文案（下拉通知栏显示的通知内容）， SDK 会在收到消息时回调 `MessageNotifierCustomization` 接口， 开发者可以根据昵称和收到的消息（消息类型、会话类型、发送者、消息扩展字段等）来决定要显示的通知内容。示例如下：
+
+```java
+public class NimApplication extends Application {
+    public void onCreate() {
+        ...
+        NIMClient.init(this, getLoginInfo(), getOptions());
+        ...
+    }
+
+    private SDKOptions getOptions() {
+        SDKOptions options = new SDKOptions();
+        ...
+        
+        // 定制通知栏提醒文案（可选，如果不定制将采用SDK默认文案）
+        options.messageNotifierCustomization = messageNotifierCustomization;
+    
+        return options;
+    }
+    
+    private MessageNotifierCustomization messageNotifierCustomization = new MessageNotifierCustomization() {
+        @Override
+        public String makeNotifyContent(String nick, IMMessage message) {
+            return null; // 采用SDK默认文案
+        }
+    
+        @Override
+        public String makeTicker(String nick, IMMessage message) {
+            return null; // 采用SDK默认文案
+        }
+    };
+}
+```
+
+3\. 如果上述两点都不定制(返回null)，将显示默认提醒内容：
+文本消息：文本消息内容。
+文件消息：{说话者}发来一条文件消息
+图片消息：{说话者}发来一条图片消息
+语音消息：{说话者}发来一条语音消息
+视频消息：{说话者}发来一条视频消息
+位置消息：{说话者}分享了一个地理位置
+通知消息：{说话者}: 通知消息
+提醒消息：{说话者}: 提醒消息
+自定义消息：{说话者}: 自定义消息
+除文本消息外，开发者可以通过  `NimStrings` 类修改这些默认提醒内容。
+
+#### 发送消息时配置消息提醒
+
+发送消息时可以设置消息配置选项 CustomMessageConfig，可以设定是否需要推送，是否需要计入未读数等：
+enablePush ： 该消息是否进行推送（消息提醒）。默认为 true 。
+enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
+
+### <span id="开发者自行实现消息提醒">开发者自行实现消息提醒</span>
 
 如果 SDK 内建的消息提醒不能满足你的需求，你可以关闭内建消息提醒，然后自己去实现。收到新消息时，上层有两种方式得到通知，然后给出通知栏提醒：
 
-- 添加消息接收观察者，在观察者的 `onEvent` 中实现状态栏提醒。注册注销方式详见[接收消息](#接收消息)一节。注意：只有 SDK 1.4.0 及以上版本才能使用该方式，1.4.0 以下的版本使用此方式有可能会漏掉通知。
-- SDK 收到新消息后，还会发送一个广播，在广播接收者的 `onReceive` 中实现自己的状态栏提醒。该广播的 ACTION 为 APP 的包名加上 `NimIntent#ACTION_RECEIVE_MSG`，例如 demo 的为："com.netease.nim.demo.ACTION.RECEIVE\_MSG"。使用这种方式时，开发者需要在 AndroidManifest.xml 文件中注册此广播的接收者，并添加对应的广播权限。
+1\. 添加消息接收观察者，在观察者的 `onEvent` 中实现状态栏提醒。注册注销方式详见[接收消息](#接收消息)一节。注意：只有 SDK 1.4.0 及以上版本才能使用该方式，1.4.0 以下的版本使用此方式有可能会漏掉通知。
+
+2\. SDK 收到新消息后，还会发送一个广播，在广播接收者的 `onReceive` 中实现自己的状态栏提醒。该广播的 ACTION 为 APP 的包名加上 `NimIntent#ACTION_RECEIVE_MSG`，例如 demo 的为："com.netease.nim.demo.ACTION.RECEIVE\_MSG"。使用这种方式时，开发者需要在 AndroidManifest.xml 文件中注册此广播的接收者，并添加对应的广播权限。
 
 ## <span id="历史记录">历史记录</span>
 
@@ -1093,7 +1225,7 @@ SDK 还提供了按照关键字搜索聊天记录的功能，可以对指定的�
  * @return 调用跟踪，可设置回调函数，接收查询结果
  */
  NIMClient.getService(MsgService.class).searchMessageHistory(keyword, fromAccounts, anchor, limit)
-	 .setCallback(new RequestCallbackWrapper<List<IMMessage>>() {});
+	 .setCallback(new RequestCallbackWrapper<List<IMMessage>>(){ ... });
 ```
 
 - 删除消息记录：
@@ -1105,7 +1237,7 @@ NIMClient.getService(MsgService.class).deleteChattingHistory(message);
 NIMClient.getService(MsgService.class).clearChattingHistory(account, sessionType);
 ```
 
-> 注意：当调用 MsgService#clearChattingHistory 接口删除与某个对象的全部聊天记录后，最近会话列表（最近联系人列表）中对应的项不会被移除，但会清空最近的消息内容（但RecentContact 的 tag 字段作为开发者的扩展字段，不会被清除）。如果需要移除最近会话项，请调用 MsgService#deleteRecentContact 接口。
+> 注意：当调用 MsgService#clearChattingHistory 接口删除与某个对象的全部聊天记录后，最近会话列表（最近联系人列表）中对应的项不会被移除，但会清空最近的消息内容，包括消息的时间显示（但 RecentContact 的 tag 字段作为开发者的扩展字段，不会被清除。开发者可使用 tag 进行最近会话列表显示定制）。如果需要移除最近会话项，请调用 MsgService#deleteRecentContact 接口。
 
 - 通过消息 uuid 查询消息
 
@@ -1162,7 +1294,7 @@ NIMClient.getService(MsgService.class).pullMessageHistoryEx(anchor, toTime, limi
  * @param persist   boolean 通过该接口获取的漫游消息记录，要不要保存到本地消息数据库。
  * @return InvocationFuture
  */
-NIMClient.getService(MsgService.class).pullMessageHistory( anchor, limit, persist);
+NIMClient.getService(MsgService.class).pullMessageHistory(anchor, limit, persist);
 ```
 
 ## <span id="语音录制及回放">语音录制及回放</span>
@@ -1273,13 +1405,13 @@ player.stop();
 
 | 权限   | 普通群             | 高级群     |
 | :--| :---------------| :---------------|
-| 邀请成员 | 群主、普通成员 | 群主、管理员 |
+| 邀请成员 | 任何人 | 群主、管理员 |
 | 踢出成员 | 群主 | 群主、管理员(管理员之间无法互相踢) |
-| 解散群 | / | 群主 |
-| 退群 | 群主、普通成员 |  管理员、普通成员 |
+| 解散群 | 群主 | 群主 |
+| 退群 | 任何人 |  管理员、普通成员 |
 | 处理入群申请 | / | 群主、管理员 |
 | 更改他人群昵称 | / | 群主、管理员 |
-| 更改群名称 | 群主、普通成员 | 群主、管理员 |
+| 更改群名称 | 任何人 | 群主、管理员 |
 | 更改群公告 | / | 群主、管理员 |
 | 更改群介绍 | / | 群主、管理员 |
 | 更新验证方式 | / | 群主、管理员 |
@@ -1292,7 +1424,7 @@ player.stop();
 
 ### <span id="关闭群聊消息提醒">关闭群聊消息提醒</span>
 
-群聊消息提醒可以单独打开或关闭，关闭提醒之后，用户仍然会收到这个群的消息。如果开发者使用的是云信内建的消息提醒，用户收到新消息后不会再用通知栏提醒，如果用户使用的 iOS 客户端，则他将收不到该群聊消息的 APNS 推送。如果开发者自行实现状态栏提醒，可通过 `Team` 的 `mute` 接口获取提醒配置，并决定是不是要显示通知。
+群聊消息提醒可以单独打开或关闭，关闭提醒之后，用户仍然会收到这个群的消息。如果开发者使用的是云信内建的消息提醒，用户收到新消息后不会再用通知栏提醒，如果用户使用的 iOS 客户端，则他将收不到该群聊消息的 APNS 推送。如果开发者自行实现状态栏提醒，可通过 `Team` 的 `mute` 接口获取提醒配置，并决定是不是要显示通知。群聊消息提醒设置可以漫游。
 开发者可通过调用一下接口打开或关闭群聊消息提醒：
 
 ```java
@@ -1542,7 +1674,7 @@ NIMClient.getService(TeamServiceObserver.class).observeTeamRemove(teamRemoveObse
 NIMClient.getService(TeamService.class)
 	.addManagers(teamId, accounts)
 	.setCallback(new RequestCallback<List<TeamMember>>() {
-}
+});
 /**
  * 拥有者撤销管理员权限 <br>
  * @param teamId 群ID
@@ -1552,7 +1684,7 @@ NIMClient.getService(TeamService.class)
  NIMClient.getService(TeamService.class)
 	.removeManagers(teamId, managers)
 	.setCallback(new RequestCallback<List<TeamMember>>() {
-}
+});
 ```
 
 操作完成后，群内所有成员都会收到一条消息类型为 `notification` 的 `IMMessage`，附件类型为 `MemberChangeAttachment`。
@@ -1924,7 +2056,7 @@ NIMClient.getService(FriendService.class).ackAddFriendRequest(account, true); //
 
 ```java
 NIMClient.getService(FriendService.class).deleteFriend(account)
-	.setCallback(new RequestCallback<Void>() { ... }
+	.setCallback(new RequestCallback<Void>() { ... });
 ```
 
 #### 监听好友关系的变化
@@ -1992,14 +2124,14 @@ NIMClient.getService(FriendService.class).updateFriendFields(data, map)
 
 ```java
 NIMClient.getService(FriendService.class).addToBlackList(account)
-    .setCallback(new RequestCallback<Void>() { ... }
+    .setCallback(new RequestCallback<Void>() { ... });
 
 ```
 #### 移出黑名单
 
 ```java
 NIMClient.getService(FriendService.class).removeFromBlackList(user.getAccount())
-	.setCallback(new RequestCallback<Void>() { ... }
+	.setCallback(new RequestCallback<Void>() { ... });
 ```
 
 #### 监听黑名单变化
@@ -2033,7 +2165,7 @@ boolean black = NIMClient.getService(FriendService.class).isInBlackList(account)
 
 ### <span id="消息提醒">消息提醒</span>
 
-网易云信支持对用户设置或关闭消息提醒，关闭后，收到该用户发来的消息时，不再进行通知栏消息提醒。
+网易云信支持对用户设置或关闭消息提醒，关闭后，收到该用户发来的消息时，不再进行通知栏消息提醒。个人用户的消息提醒设置可以漫游。
 
 #### 设置/关闭消息提醒
 
@@ -2060,7 +2192,6 @@ boolean notice = NIMClient.getService(FriendService.class).isNeedMessageNotify(a
 List<String> accounts = NIMClient.getService(FriendService.class).getMuteList();
 ```
 
-
 ## <span id="用户资料托管">用户资料托管</span>
 
 网易云信提供了用户资料托管( `NimUserInfo` )，第三方 APP 可以使用也可以自行实现，但必须实现 `UserInfo` 接口。
@@ -2072,7 +2203,13 @@ List<String> accounts = NIMClient.getService(FriendService.class).getMuteList();
 通过用户帐号集合，从本地数据库批量获取用户资料列表。代码示例如下：
 
 ```java
-List<NimUserInfo> users = NIMClient.getService(UserService.class).getUserInfo(accounts);
+List<NimUserInfo> users = NIMClient.getService(UserService.class).getUserInfoList(accounts);
+```
+
+通过用户账号，从本地数据库获取用户资料。代码示例如下：
+
+```java
+NimUserInfo user = NIMClient.getService(UserService.class).getUserInfo(account);
 ```
 
 #### 从本地数据库中获取所有用户资料
@@ -2089,7 +2226,7 @@ List<NimUserInfo> users = NIMClient.getService(UserService.class).getAllUserInfo
 
 ```java
 List<String> accounts = NIMClient.getService(FriendService.class).getFriendAccounts(); // 获取所有好友帐号
-List<NimUserInfo> users = NIMClient.getService(UserService.class).getUserInfo(accounts); // 获取所有好友用户资料
+List<NimUserInfo> users = NIMClient.getService(UserService.class).getUserInfoList(accounts); // 获取所有好友用户资料
 ```
 
 ### <span id="获取服务器用户资料">获取服务器用户资料</span>
@@ -2098,7 +2235,7 @@ List<NimUserInfo> users = NIMClient.getService(UserService.class).getUserInfo(ac
 
 ```java
 NIMClient.getService(UserService.class).fetchUserInfo(accounts)
-    .setCallback(new RequestCallback<List<UserInfo>>() {...});
+    .setCallback(new RequestCallback<List<UserInfo>>() { ... });
 ```
 此接口可以批量从服务器获取用户资料，从用户体验和流量成本考虑，不建议应用频繁调用此接口。对于用户数据实时性要求不高的页面，应尽量调用读取本地缓存接口。
 
@@ -2112,7 +2249,7 @@ NIMClient.getService(UserService.class).fetchUserInfo(accounts)
 Map<UserInfoFieldEnum, Object> fields = new HashMap<>(1);
 fields.put(UserInfoFieldEnum.Name, "new name");
 NIMClient.getService(UserService.class).updateUserInfo(fields)
-    .setCallback(new RequestCallbackWrapper<Void>() {...});
+    .setCallback(new RequestCallbackWrapper<Void>() { ... });
 ```
 SDK对部分字段进行格式校验：
 - 邮箱：必须为合法邮箱
@@ -2181,7 +2318,7 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 主叫方可以发起语音或者视频通话，通话类型见 `AVChatTypeEnum`，如果发起的是视频通话，需要传入 `VideoChatParam`，其中包含视频采集用的 SurfaceView（一般只需要在界面布局里放置一个 1×1 的 SurfaceView）及视频旋转角度，如果发起的是语音通话，该参数填 null。
 
 ```java
-AVChatManager.getInstance().call(account, callType, videoParam, new AVChatCallback<AVChatData>() {}
+AVChatManager.getInstance().call(account, callType, videoParam, new AVChatCallback<AVChatData>() { ... });
 ```
 
 #### 监听来电（被叫方）
@@ -2251,13 +2388,13 @@ Observer<AVChatOnlineAckEvent> onlineAckObserver = new Observer<AVChatOnlineAckE
 注意：由于音视频引擎析构需要时间，请尽可能保证上一次通话挂断到本次电话接听时间间隔在2秒以上，否则有可能在接听时出现初始化引擎失败（code = -1），此问题后期会进行优化。
 
 ```java
-AVChatManager.getInstance().accept(videoParam, new AVChatCallback<Void>() {}
+AVChatManager.getInstance().accept(videoParam, new AVChatCallback<Void>() { ... });
 ```
 
 #### 拒绝接听（被叫方）
 
 ```java
-AVChatManager.getInstance().hangUp(new AVChatCallback<Void>() {}
+AVChatManager.getInstance().hangUp(new AVChatCallback<Void>() { ... });
 ```
 
 #### 监听被叫方回应（主叫方）
@@ -2320,10 +2457,10 @@ AVChatManager.getInstance().toggleLocalVideo(false, null);
 
 ```java
 // 请求音频切换到视频，需要传入VideoChatParam
-AVChatManager.getInstance().requestSwitchToVideo(videoParam, new AVChatCallback<Void>() {}
+AVChatManager.getInstance().requestSwitchToVideo(videoParam, new AVChatCallback<Void>() { ...});
 
 // 请求视频切换到音频
-AVChatManager.getInstance().requestSwitchToAudio(new AVChatCallback<Void>() {}
+AVChatManager.getInstance().requestSwitchToAudio(new AVChatCallback<Void>() { ... });
 ```
 
 #### <span id="音视频切换请求的回应">音视频切换请求的回应</span>
@@ -2332,7 +2469,7 @@ AVChatManager.getInstance().requestSwitchToAudio(new AVChatCallback<Void>() {}
 
 ```java
 // 同意音频切换到视频
-AVChatManager.getInstance().ackSwitchToVideo(true, videoParam, new AVChatCallback<Void>() {}
+AVChatManager.getInstance().ackSwitchToVideo(true, videoParam, new AVChatCallback<Void>() { ... });
 
 // 拒绝音频切换到视频
 AVChatManager.getInstance().ackSwitchToVideo(false, videoParam, null);
@@ -2524,7 +2661,7 @@ public void onCallEstablished() {
 
 ```java
 /**
-* 1：音频录制错误
+* 1：音频采集错误
 * 2：音频播放错误
 * 4：视频采集错误
 * 8：视频渲染错误
@@ -2580,6 +2717,38 @@ AVChatManager.getInstance().toggleCamera();
 
 具体见[请求音视频切换](#请求音视频切换) 和 [音视频切换请求的回应](#音视频切换请求的回应)
 
+### <span id="通话中音视频录制">通话中音视频录制</span>
+
+通话进行中，可以录制自己发送的音频和视频数据, 文件将以MP4格式保存在客户端本地。程序卸载时录制的本地文件也会随程序一并删除。
+
+#### 开始录制
+
+客户端本地录制接口，通过返回值判断是否调用成功。仅录制发送的音频和视频文件，前后摄像头切换时录制文件可能存在多个。
+
+```java
+// 开始录制
+AVChatManager.getInstance().startRecord(null);
+```
+
+#### 结束录制
+
+客户端停止本地录制接口, 停止录制后将会通过回调函数返回结果。
+
+```java
+// 停止录制
+AVChatManager.getInstance().stopRecord(null);
+```
+
+```java
+/**
+ * 本地录制结束时通知
+ * @param files  录制文件，由于不同的摄像头参数不一样可能会存在多个文件。
+ * @param event  录制结束原因. 0,正常结束 1,异常结束(存储空间不足等)
+*/
+void onRecordEnd(String[] files, int event);
+```
+
+
 ## <span id="实时会话（白板）">实时会话（白板）</span>
 
 网易云信提供数据通道（TCP/UDP/语音通道)来满足实时会话的需求，如在线白板教学(参考demo)、文件传输等场景，其中 TCP/UDP 通道，可以同时存在多个，语音通道全局只能有一个。
@@ -2619,7 +2788,7 @@ String extra = "extra_data";
 RTSOptions options = new RTSOptions().setPushContent(pushContent).setExtra(extra).setRecordAudioTun(true)
             .setRecordTCPTun(true);
 
-sessionId = RTSManager.getInstance().start(account, types, options, new RTSCallback<RTSData>() { ... }
+sessionId = RTSManager.getInstance().start(account, types, options, new RTSCallback<RTSData>() { ... });
 if (sessionId == null) {
     // 发起会话失败,音频通道同时只能有一个会话开启
     onFinish();
@@ -2679,14 +2848,14 @@ Observer<RTSOnlineAckEvent> onlineAckObserver = new Observer<RTSOnlineAckEvent>(
 
 ```java
 RTSOptions options = new RTSOptions().setRecordAudioTun(true).setRecordTCPTun(true);
-RTSManager.getInstance().accept(sessionId, options, new RTSCallback<Boolean>() { ... }
+RTSManager.getInstance().accept(sessionId, options, new RTSCallback<Boolean>() { ... });
 ```
 如果回调 onFailed 返回 -1，表示本地正在使用语音通道，不能同时存在两个语音通道。
 
 #### 拒绝会话（被叫方）
 
 ```java
-RTSManager.getInstance().close(sessionId, new RTSCallback<Void>() { ... }
+RTSManager.getInstance().close(sessionId, new RTSCallback<Void>() { ... });
 ```
 
 #### 监听被叫方回应（主叫方）
@@ -2732,7 +2901,7 @@ private Observer<RTSCommonEvent> endSessionObserver = new Observer<RTSCommonEven
 双方会话建立之后，就可以相互发送控制信息了。
 
 ```java
-RTSManager.getInstance().sendControlCommand(sessionId, content, new RTSCallback<Void>() { ... }
+RTSManager.getInstance().sendControlCommand(sessionId, content, new RTSCallback<Void>() { ... });
 ```
 
 #### 监听会话控制通知
@@ -2809,7 +2978,7 @@ RTSChannelStateObserver channelStateObserver = new RTSChannelStateObserver() {
 发起结束通话的一方，调用 `close`  接口。另外一方，需要注册  `observeHangUpNotification`  监听挂断通知，收到通知后，做相应处理，代码示例见[监听对方结束会话（主叫方、被叫方）](#监听对方结束会话) 。
 
 ```java
-RTSManager.getInstance().close(sessionId, new RTSCallback<Void>() { ... }
+RTSManager.getInstance().close(sessionId, new RTSCallback<Void>() { ... });
 ```
 
 ### <span id="数据收发">数据收发</span>
@@ -2866,5 +3035,39 @@ RTSManager.getInstance().setMute(sessionId, true);
 RTSManager.getInstance().setSpeaker(sessionId, true);
 ```
 
-## <span id="API 文档"> API 文档 </span>
+## <span id="容易混淆的概念">容易混淆的概念</span>
+
+### <span id="通知类消息">通知类消息</span>
+
+- 概念
+属于会话中的一种消息，有在线、离线、漫游。继承 NotificationAttachment，目前用于（已操作完成的）群通知事件。包含 MemberChangeAttachment , UpdateTeamAttachment , LeaveTeamAttachment 和 DismissAttachment 。没有通知栏提醒（如有需要，第三方自行实现）。
+
+- 使用场景
+一般位于聊天界面的中间。例如，群名称更新，某某某退出了群聊等。
+
+### <span id="自定义消息">自定义消息</span>
+
+- 概念
+属于会话中的一种消息，有在线、离线、漫游、通知栏提醒（文案需要自行定制）。主要是通过 IMMessage 的 setAttachment 来实现。
+
+- 使用场景
+一般与普通文本，语音消息相同。位于聊天界面的左右两侧。例如，猜拳、贴图、阅后即焚均可以采用自定义消息来实现。
+
+### <span id="（内置）系统通知">（内置）系统通知</span>
+
+- 概念
+属于一种通知类型。主要包括入群申请、入群邀请、好友验证、好友添加和删除。只有在线和离线，没有漫游。没有通知栏提醒（如有需要，第三方自行实现）。
+
+- 使用场景
+通常在验证消息列表中展现。
+
+### <span id="自定义（系统）通知">自定义（系统）通知</span>
+
+- 概念
+属于一种通知类型。是一种全局的通知类型。只有在线和离线，没有漫游，没有通知栏提醒（第三方自行实现）。
+
+- 使用场景
+聊天双方处于P2P聊天界面时，显示的“正在输入通知”。
+
+## <span id="API 文档">API 文档</span>
 * [在线文档](http://dev.netease.im/doc/android/index.html "target=_blank")
