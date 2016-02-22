@@ -24,26 +24,22 @@ libs
 ├── armeabi
 │   ├── libne_audio.so （高清语音录制功能必须）
 │   └── libcosine.so （Android 后台保活需要）
-│   └── libnio.so （音视频、实时会话服务需要）
 │   ├── librtc_engine.so （音视频需要）
 │   └── librtc_network.so （音视频需要）
 │   └── librts_network.so （实时会话服务需要）
 ├── armeabi-v7a
 │   ├── libne_audio.so
 │   └── libcosine.so
-│   └── libnio.so
 │   ├── librtc_engine.so
 │   └── librtc_network.so
 │   └── librts_network.so
 ├── x86
 │   ├── libne_audio.so
 │   └── libcosine.so
-│   └── libnio.so
 │   ├── librtc_engine.so
 │   └── librtc_network.so
 │   └── librts_network.so
 ├── nim-sdk-1.0.0.jar
-├── netty-4.0.23-for-yx.final.jar
 ├── nrtc-sdk-1.0.0.jar（音视频需要）
 └── cosinesdk.jar (Android 后台保活需要)
 ```
@@ -83,8 +79,6 @@ libs
 ├── nrtc-sdk-1.1.0.jar
 └── cosinesdk.jar
 ```
-
-网易云信 SDK 的网络连接还依赖于 netty 框架，在上面的文件夹中，我们也包含了 netty 的 4.0.23 版本的 jar 包，这个 jar 包我们有一些修改，主要是增加 Android 兼容性，去掉了一些依赖反射的调用，以及性能上的一些优化。如果你的 APP 也依赖于 netty，你可以使用这个修改后的版本，也可以使用官方的原始版本。
 
 如果你使用的 IDE 是 Android Studio，要将 jni 库按照 IDEA 工程目录的结构，放置在对应的目录中（一般为 src/main/jniLibs）。或者在 build.gradle 中配置好 jniLibs 的 sourceSets（可参考 demo 的 build.gradle）。
    
@@ -479,6 +473,17 @@ NIMClient.getService(AuthServiceObserver.class).observeOtherClients(new Observer
 NIMClient.getService(AuthService.class).kickOtherClient(onlineClient).setCallback(new RequestCallback<Void>() { ... });
 ```
 
+当被其他端踢掉，可以通过在线状态观察者来接收监听消息：
+
+```java
+NIMClient.getService(AuthServiceObserver.class).observeOnlineStatus(
+	new Observer<StatusCode> () {
+		public void onEvent(StatusCode status) {
+			// 判断在线状态，如果为被其他端踢掉，做登出操作
+		}
+}, true);
+```
+
 云信内置多端登录互踢策略为：移动端( Android 、 iOS )互踢，桌面端( PC 、 Web )互踢，移动端和桌面端共存（ 可以采用上述 kickOtherClient 主动踢下共存的其他端）。
 
 如果当前的互踢策略无法满足业务需求的话，可以联系我们取消内置互踢，根据多端登录的回调和当前的设备列表，判断本设备是否需要被踢出。如果需要踢出，直接调用登出接口并在界面上给出相关提示即可。
@@ -504,6 +509,14 @@ NIMClient.getService(AuthService.class).logout();
 ```java
 NIMClient.getService(AuthService.class).openLocalCache(account);
 ```
+
+### <span id="断线重连机制">断线重连机制</span>
+
+SDK有两种机制保证断线重连的稳定性：
+
+1\. SDK拥有定时器，在网络状况良好的情况下，会定时判断是否需要重连，如果需要则重连。
+
+2\. SDK会监听手机的网络状况，当监听到手机断网重连上网络的通知后，会进行重连工作。
 
 ## <span id="基础消息功能">基础消息功能</span>
 
@@ -627,7 +640,7 @@ NIMClient.getService(MsgService.class).sendMessage(msg, false);
 
 - 发送消息时可以设置消息配置选项 `CustomMessageConfig`，主要用于设定消息的声明周期，是否需要推送，是否需要计入未读数等，目前支持的配置选项有：
 
-1\. enableHistory ：该消息是否要保存到服务器，如果为 false，通过 MsgService#pullMessageHistory 拉取的结果将不包含该条消息。默认为 true 。
+1\. enableHistory ：该消息是否允许在消息历史中拉取，如果为 false，通过 MsgService#pullMessageHistory 拉取的结果将不包含该条消息。默认为 true 。
 
 2\. enableRoaming ：该消息是否需要漫游。如果为 false ，一旦某一个客户端收取过该条消息，其他端将不会再漫游到该条消息。默认为 true 。
 
@@ -1048,6 +1061,24 @@ public class CustomAttachParser implements MsgAttachmentParser {
 
 ```java
 NIMClient.getService(MsgService.class).registerCustomAttachmentParser(new CustomAttachParser()); // 监听的注册，必须在主进程中。
+```
+
+### <span id="Tip消息">Tip消息</span>
+
+Tip 消息主要用于会话内的通知提醒，可以看做是自定义消息的简化，有独立的消息类型 MsgTypeEnum.tip 。在发送 Tip 消息时可以指定一个 content ，类型为 Map 。本质上 SDK 是使用扩展字段 remoteExtension 进行存储，因此接收方收到 Tip 消息后，应读取消息的 remoteExtension 来获取发送方指定的 content。 
+区别于自定义消息，Tip 消息不支持 setAttachment，如果要使用 Attachment 请使用自定义消息。
+Tip 消息使用场景例如：进入会话时出现的欢迎消息，或是会话过程中命中敏感词后的提示消息等场景，当然也可以用自定义消息实现，只是相对复杂一些。
+
+```java
+// 演示：向群里插入一条Tip消息，使得该群能立即出现在最近联系人列表（会话列表）中，满足部分开发者需求。
+Map<String, Object> content = new HashMap<>(1);
+content.put("content", "成功创建高级群");
+IMMessage msg = MessageBuilder.createTipMessage(team.getId(), SessionTypeEnum.Team, content);
+CustomMessageConfig config = new CustomMessageConfig();
+config.enableUnreadCount = false;
+msg.setConfig(config);
+msg.setStatus(MsgStatusEnum.success);
+NIMClient.getService(MsgService.class).saveMessageToLocal(msg, true);
 ```
 
 ### <span id="更新消息">更新消息</span>
@@ -1703,6 +1734,31 @@ NIMClient.getService(TeamServiceObserver.class).observeTeamRemove(teamRemoveObse
 
 群被解散后，群内所有成员都会收到一条消息类型为 `notification` 的 `IMMessage`，带有一个消息附件，类型为 `DismissAttachment`，原群主为该消息的 fromAccount。如果注册了群组被移除的观察者，这个观察者会收到通知。
 
+### <span id="监听群成员资料变化">监听群成员资料变化</span>
+
+由于获取群成员资料需要跨进程异步调用，开发者最好能在第三方 APP 中做好群成员资料缓存，查询群成员资料时都从本地缓存中访问。在群成员资料有变化时，SDK 会告诉注册的观察者，此时，第三方 APP 可更新缓存，并刷新界面。
+
+```java
+// 群成员资料变化观察者通知。群组添加新成员，成员资料变化会收到该通知。
+// 返回的参数为有更新的群成员资料列表。
+Observer<List<TeamMember>> memberUpdateObserver = new Observer<List<TeamMember>>() {
+	@Override
+	public void onEvent(List<TeamMember> members) {
+	}
+};
+// 注册/注销观察者
+NIMClient.getService(TeamServiceObserver.class).observeMemberUpdate(memberUpdateObserver, register);
+
+// 移除群成员的观察者通知。
+private Observer<TeamMember> memberRemoveObserver = new Observer<TeamMember>() {
+	@Override
+	public void onEvent(TeamMember member) {
+	}
+};
+// 注册/注销观察者
+NIMClient.getService(TeamServiceObserver.class).observeMemberRemove(memberRemoveObserver, register);
+```
+
 ### <span id="管理群组权限">管理群组权限</span>
 
 高级群中，拥有者可以增加和删除管理员。
@@ -1773,14 +1829,299 @@ NIMClient.getService(TeamService.class).searchTeam(teamId)
 	.setCallback(new RequestCallback<Team>() { ... });
 ```
 
+## <span id="聊天室">聊天室</span> 
+
+聊天室模型特点：
+
+- 进入聊天室时必须建立新的连接，退出聊天室或者被踢会断开连接，在聊天室中掉线会有自动重连，开发者需要监听聊天室连接状态来做出正确的界面表现。
+- 支持聊天人数无上限。
+- 聊天室只允许用户手动进入，无法进行邀请。
+- 支持同时进入多个聊天室，会建立多个连接。
+- 不支持多端进入同一个聊天室，后进入的客户端会将前一个踢掉。
+- 断开聊天室连接后，服务器不会再推送该聊天室的消息给此用户。
+- 聊天室成员分固定成员（固定成员有四种类型，分别是创建者,管理员,普通用户,受限用户。禁言用户和黑名单用户都属于受限用户。）和游客两种类型。
+
+### <span id="进入聊天室">进入聊天室</span> 
+
+聊天室必填字段roomId。
+
+聊天室可选字段：
+
+1\. 扩展字段extension，进入聊天室后展示的扩展字段，长度限制4K
+
+2\. 通知的扩展字段notifyExtension，进入聊天室通知开发者扩展字段，长度限制1K
+
+```java
+EnterChatRoomData data = new EnterChatRoomData(roomId);
+        NIMClient.getService(ChatRoomService.class).enterChatRoom(data)
+                .setCallback(new RequestCallback<EnterChatRoomResultData>() {...});
+```
+
+> 注意：当进入聊天室后，再发生掉线问题时，SDK会自动进行重连，无需开发者再次调用进入聊天室接口。
+
+### <span id="离开聊天室">离开聊天室</span> 
+
+离开聊天室，会断开聊天室对应的链接，并不再收到该聊天室的任何消息。如果用户要离开聊天室，可以手动调用离开聊天室接口，该接口没有回调。
+
+```java
+NIMClient.getService(ChatRoomService.class).exitChatRoom(roomId);
+```
+
+### <span id="发送消息">发送消息</span> 
+
+先通过 `ChatRoomMessageBuilder` 提供的接口创建消息对象，然后调用 `ChatRoomService` 的 `sendMessage` 接口发送出去即可。
+
+聊天室消息 `ChatRoomMessage` 继承自 `IMMessage` 。新增了两个方法：分别是设置和获取聊天室消息扩展属性。
+
+下面给出发送文本类型消息的示例代码：
+
+```java
+// 创建文本消息
+ChatRoomMessage message = ChatRoomMessageBuilder.createChatRoomTextMessage(
+	sessionId, // 聊天对象的 ID，即用户帐号
+	content // 文本内容
+	);
+	
+// 发送消息。如果需要关心发送结果，可设置回调函数。发送完成时，会收到回调。如果失败，会有具体的错误码。
+NIMClient.getService(ChatRoomService.class).sendMessage(message);
+```
+
+### <span id="接收消息">接收消息</span>
+
+通过添加消息接收观察者，在有新消息到达时，第三方 APP 就可以接收到通知。代码如下：
+
+```java
+Observer<List<ChatRoomMessage>> incomingChatRoomMsg = new Observer<List<ChatRoomMessage>>() {
+        @Override
+        public void onEvent(List<ChatRoomMessage> messages) {
+            // 处理新收到的消息
+        }
+    };
+    
+NIMClient.getService(ChatRoomServiceObserver.class)
+	.observeReceiveMessage(incomingChatRoomMsg, register);
+```
+
+### <span id="聊天室通知消息">聊天室通知消息</span>
+
+聊天室通知消息是聊天室消息的一种。即聊天室通知消息是 `ChatRoomMessage`， 其中附件类型为 `ChatRoomNotificationAttachment` ，附件类型中的 type 字段来标识聊天室通知消息的类型。目前支持的类型见`NotificationType` 。
+
+### <span id="获取历史消息">获取历史消息</span> 
+
+聊天室支持获取云端消息记录的功能。以 startTime（单位毫秒） 为时间戳，拉取 limit 条消息。拉取到的消息中也包含成员操作的通知消息。
+
+```java
+/**
+ * 获取历史消息
+ *
+ * @param roomId    聊天室id
+ * @param startTime 时间戳，单位毫秒
+ * @param limit     可拉取的消息数量
+ * @return InvocationFuture 可以设置回调函数。回调中返回历史消息列表
+ */
+NIMClient.getService(ChatRoomService.class).pullMessageHistory(roomId, 0, 10)
+	.setCallback(new RequestCallbackWrapper<List<IMMessage>>() {
+	@Override
+	public void onResult(int code, List<IMMessage> messages, Throwable exception) {
+		if (messages != null) {
+			messageListPanel.onLoadHistoryMessage(messages);
+		}
+	}
+});
+```
+
+### <span id="获取聊天室基本信息">获取聊天室基本信息</span> 
+
+此接口可以向服务器获取聊天室信息。SDK 不提供聊天室信息的缓存，开发者可根据需要自己做缓存。
+
+```java
+NIMClient.getService(ChatRoomService.class)
+	.fetchRoomInfo(roomId).setCallback(new RequestCallback<ChatRoomInfo>() { ... });
+```
+
+### <span id="获取聊天室成员">获取聊天室成员</span> 
+
+#### <span id="获取成员信息">获取成员信息</span>
+
+该接口可以获取固定成员信息和游客信息。
+
+固定成员有四种类型，分别是创建者,管理员,普通用户,受限用户。禁言用户和黑名单用户都属于受限用户。
+
+拉取固定成员时，无论成员在线不在线，都会返回。拉取游客时，只返回在线的成员。
+
+```java
+/**
+ * 获取聊天室成员信息
+ *
+ * @param roomId          聊天室id
+ * @param memberQueryType 成员查询类型。见{@link MemberQueryType}
+ * @param time            固定成员列表用updatetime,
+ *                        有课列表用enterTime，
+ *                        填0会使用当前服务器最新时间开始查询，即第一页，单位毫秒
+ * @param limit           条数限制
+ * @return InvocationFuture 可以设置回调函数。回调中返回成员信息列表
+ */
+NIMClient.getService(ChatRoomService.class)
+	.fetchRoomMembers(roomId, memberQueryType, time, limit)
+	.setCallback(new RequestCallbackWrapper<List<ChatRoomMember>>() {
+	@Override
+	public void onResult(int code, List<ChatRoomMember> result, Throwable exception) { ... });
+```
+
+#### <span id="批量获取成员信息">批量获取成员信息</span>
+
+通过用户 id 批量获取指定成员在聊天室中的信息。
+
+```java
+List<String> accounts = new ArrayList<>();
+accounts.add(account);
+        
+/**
+ * 根据用户id获取聊天室成员信息
+ *
+ * @param roomId   聊天室id
+ * @param accounts 成员帐号列表
+ * @return InvocationFuture 可以设置回调函数。回调中返回成员信息列表
+ */
+NIMClient.getService(ChatRoomService.class)
+	.fetchRoomMembersByIds(roomId, accounts)
+	.setCallback(new RequestCallbackWrapper<List<ChatRoomMember>>() { ... });
+```
+
+### <span id="监听聊天室在线状态">监听聊天室在线状态</span>
+
+进入聊天室成功后，SDK 会负责维护与服务器的长连接以及断线重连等工作。当用户在线状态发生改变时，会发出通知。登录过程也有状态回调。此外，网络连接上之后，SDK 会负责聊天室的自动登录。开发者可以通过加入以下代码监听聊天室在线状态改变：
+
+```java
+NIMClient.getService(ChatRoomServiceObserver.class)
+	.observeOnlineStatus(onlineStatus, register);
+
+Observer<ChatRoomStatusChangeData> onlineStatus 
+	= new Observer<ChatRoomStatusChangeData>() {
+        @Override
+        public void onEvent(ChatRoomStatusChangeData chatRoomStatusChangeData) {
+            ...
+        }
+    };
+```
+
+### <span id="成员操作">成员操作</span> 
+
+#### <span id="拉黑">拉黑</span>
+
+- 加入黑名单时，会收到类型为 `ChatRoomMemberBlackAdd` 聊天室通知消息。
+- 移出黑名单时，会收到类型为 `ChatRoomMemberBlackRemove` 的聊天室通知消息。
+
+```java
+MemberOption option = new MemberOption(roomId, account);
+/**
+ * 添加/移出聊天室黑名单
+ *
+ * @param isAdd        true:添加, false:移出
+ * @param memberOption 请求参数，包含聊天室id，帐号id以及可选的扩展字段
+ * @return InvocationFuture 可以设置回调函数。回调中返回成员信息
+ */
+NIMClient.getService(ChatRoomService.class)
+	.markChatRoomBlackList(!chatRoomMember.isInBlackList(), option)
+	.setCallback(new RequestCallback<ChatRoomMember>() { ... });
+```
+
+#### <span id="禁言">禁言</span>
+
+- 添加到禁言名单时, 会收到类型为 `ChatRoomMemberMuteAdd` 的聊天室通知消息。
+- 取消禁言时, 会收到类型为 `ChatRoomMemberMuteRemove` 的聊天室通知消息。
+
+取消禁言之后，恢复为原来的身份。原来是游客，取消禁言后，变为游客。原来是普通成员，取消禁言后，变为普通成员。
+
+```java
+MemberOption option = new MemberOption(roomId, account);
+
+/**
+ * 添加到禁言名单/取消禁言
+ *
+ * @param isAdd        true:添加, false:取消
+ * @param memberOption 请求参数，包含聊天室id，帐号id以及可选的扩展字段
+ * @return InvocationFuture 可以设置回调函数。回调中返回成员信息
+ */
+NIMClient.getService(ChatRoomService.class)
+	.markChatRoomMutedList(!chatRoomMember.isMuted(), option)
+	.setCallback(new RequestCallback<ChatRoomMember>() { ... });
+```
+
+#### <span id="设置管理员">设置管理员</span>
+
+- 设为管理员时, 会收到类型为 `ChatRoomManagerAdd` 的聊天室通知消息。
+- 取消管理员时, 会收到类型为 `ChatRoomManagerRemove` 的聊天室通知消息。
+
+如果游客被设为管理员，再被取消管理员，该成员不在变为游客，而成为普通成员。
+
+```java
+/**
+ * 设为管理员/取消管理员
+ *
+ * @param isAdd        true:设为, false:取消
+ * @param memberOption 请求参数，包含聊天室id，帐号id以及可选的扩展字段
+ * @return InvocationFuture 可以设置回调函数。回调中返回成员信息
+ */
+NIMClient.getService(ChatRoomService.class)
+	.markChatRoomManager(!isAdmin, new MemberOption(roomId, member.getAccount()))
+	.setCallback(new RequestCallback<ChatRoomMember>() { ... });
+```
+
+#### <span id="设置普通成员">设置普通成员</span>
+
+- 设为普通成员时, 会收到类型为 `ChatRoomCommonAdd` 的聊天室通知消息。
+- 移除普通成员时, 会收到类型为 `ChatRoomCommonRemove` 的聊天室通知消息。
+
+```java
+ /**
+ * 设为/取消聊天室普通成员
+ * @param isAdd         true:设为, false:取消
+ * @param memberOption  请求参数，包含聊天室id，帐号id以及可选的扩展字段
+ * @return InvocationFuture 可以设置回调函数。回调中返回成员信息
+ */
+NIMClient.getService(ChatRoomService.class)
+	.markNormalMember(!isNormal, new MemberOption(roomId, member.getAccount()))
+	.setCallback(new RequestCallback<ChatRoomMember>() { ... });
+```
+
+#### <span id="踢出聊天室">踢出聊天室</span>
+
+踢出成员。仅管理员可以踢；如目标是管理员仅创建者可以踢。
+
+可以添加被踢通知扩展字段，这个字段会放到被踢通知的扩展字段中。通知扩展字段最长1K；扩展字段需要传入 Map<String,Object>， SDK 会负责转成Json String。
+
+当有人被踢出聊天室时，会收到类型为 `ChatRoomMemberKicked` 的聊天室通知消息。
+
+```java
+Map<String, Object> reason = new HashMap<>();
+reason.put("reason", "kick");
+NIMClient.getService(ChatRoomService.class)
+	.kickMember(roomId, chatRoomMember.getAccount(), reason)
+	.setCallback(new RequestCallback<Void>() { ... });
+```
+
+### <span id="监听被踢出聊天室">监听被踢出聊天室</span>
+
+当用户被主播或者管理员踢出聊天室，会收到通知。注意：收到被踢出通知后，不需要再调用退出聊天室接口，SDK 会负责聊天室的退出工作。可以在踢出通知中做相关缓存的清理工作和界面操作。开发者可以通过加入以下代码监听是否被踢出聊天室:
+
+```java
+NIMClient.getService(ChatRoomServiceObserver.class)
+	.observeKickOutEvent(kickOutObserver, register);
+
+Observer<ChatRoomKickOutEvent> kickOutObserver = new Observer<ChatRoomKickOutEvent>() {
+        @Override
+        public void onEvent(ChatRoomKickOutEvent chatRoomKickOutEvent) { 
+            // 清空缓存数据
+        }
+    };
+```
+
 ## <span id="系统通知">系统通知</span>
 
-### <span id="内置">内置</span>
+系统通知是网易云信系统内建的消息/通知，其对应的数据结构为 `SystemMessage`。由网易云信服务器推送给用户的通知类消息，用于网易云信系统类的事件通知。现在主要包括群变动的相关通知，例如入群申请，入群邀请等，如果第三方应用还托管了好友关系，好友的添加、删除也是这个类型的通知。系统通知由 SDK 负责接收和存储，并提供较简单的未读数管理。
 
-系统通知是网易云信系统内建的消息/通知，其对应的数据结构为 
-`SystemMessage`。由网易云信服务器推送给用户的通知类消息，用于网易云信系统类的事件通知。现在主要包括群变动的相关通知，例如入群申请，入群邀请等，如果第三方应用还托管了好友关系，好友的添加、删除也是这个类型的通知。系统通知由 SDK 负责接收和存储，并提供较简单的未读数管理。
-
-#### <span id="监听系统通知">监听系统通知</span>
+### <span id="监听系统通知">监听系统通知</span>
 
 开发者可通过 `SystemMessageObserver` 监听系统通知，包括系统通知的到达事件和未读数的变化。
 
@@ -1809,7 +2150,7 @@ private Observer<Integer> sysMsgUnreadCountChangedObserver = new Observer<Intege
     };
 ```
 
-#### <span id="管理系统通知">管理系统通知</span>
+### <span id="管理系统通知">管理系统通知</span>
 
 - 查询系统通知列表
 
@@ -1909,7 +2250,7 @@ types.add(SystemMessageType.AddFriend);
 NIMClient.getService(SystemMessageService.class).resetSystemMessageUnreadCount();
 ```
 
-### <span id="自定义">自定义</span>
+## <span id="自定义通知">自定义通知</span>
 
 系统通知属于网易云信的体系内，如果第三方 APP 需要自己的系统通知，可使用自定义通知，其数据结构为 `CustomNotification`。
 
@@ -1922,7 +2263,7 @@ NIMClient.getService(SystemMessageService.class).resetSystemMessageUnreadCount()
 
 注意：自定义通知和自定义消息的不同之处在于，自定义消息归属于网易云信的消息体系内，适用于会话中，由 SDK 存储在消息数据库中，与网易云信的其他内建消息类型一同展现给用户。而自定义通知主要用于第三方的一些事件状态通知，网易云信不存储，也不解释这些通知，网易云信仅仅负责替第三方传递和通知这些事件，起到透传的作用。
 
-#### <span id="发送自定义通知">发送自定义通知</span>
+### <span id="发送自定义通知">发送自定义通知</span>
 
 通过 SDK 提供的接口，第三方 APP 可以在客户端向其他用户或者群组发送自定义通知。SDK 能发送的自定义通知主要分为两种。
 
@@ -2001,7 +2342,7 @@ command.setConfig(config);
 NIMClient.getService(MsgService.class).sendCustomNotification(command);
 ```
 
-#### <span id="接收自定义通知">接收自定义通知</span>
+### <span id="接收自定义通知">接收自定义通知</span>
 
 上层有两种方式接收自定义通知，一是通过添加通知接收观察者的，二是通过广播的方式接收。SDK 从版本 1.4.0 开始，推荐使用第一种方式接收。从这个版本起，收到消息后就会激活 UI 主进程，并通知到已注册的观察者。只要在主进程的入口添加自定义通知的观察者，就能收到该通知。
 
@@ -3091,7 +3432,7 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 - 概念
 
-属于会话中的一种消息，有在线、离线、漫游。继承 NotificationAttachment，目前用于（已操作完成的）群通知事件。包含 MemberChangeAttachment , UpdateTeamAttachment , LeaveTeamAttachment 和 DismissAttachment 。没有通知栏提醒（如有需要，第三方自行实现）。
+属于会话中的一种消息，其对应的数据结构为 `IMMessage`，消息类型为 MsgTypeEnum.notification，有在线、离线、漫游。继承 NotificationAttachment，目前用于（已操作完成的）群通知事件。包含 MemberChangeAttachment , UpdateTeamAttachment , LeaveTeamAttachment 和 DismissAttachment 。没有通知栏提醒（如有需要，第三方自行实现）。
 
 - 使用场景
 
@@ -3101,17 +3442,27 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 - 概念
 
-属于会话中的一种消息，有在线、离线、漫游、通知栏提醒（文案需要自行定制）。主要是通过 IMMessage 的 setAttachment 来实现。
+属于会话中的一种消息，其对应的数据结构为 `IMMessage`，消息类型为 MsgTypeEnum.custom，主要提供给第三方开发者定制消息使用，有在线、离线、漫游、通知栏提醒（文案需要自行定制）。主要是通过 IMMessage的 setAttachment 来实现。
 
 - 使用场景
 
-一般与普通文本，语音消息相同。位于聊天界面的左右两侧。例如，猜拳、贴图、阅后即焚均可以采用自定义消息来实现。
+一般与普通文本，语音消息相同，位于聊天界面的左右两侧。例如，猜拳、贴图、阅后即焚均可以采用自定义消息来实现。
+
+### <span id="Tip消息">Tip消息</span>
+
+- 概念
+
+属于会话中的一种消息，其对应的数据结构为 `IMMessage`，消息类型为 MsgTypeEnum.tip，是自定义消息的简化，有在线、离线、漫游、通知栏提醒（文案需要自行定制），但是区别于自定义消息，Tip 消息不支持 setAttachment。
+
+- 使用场景
+
+一般用于自定义的通知提醒，位于聊天界面的中间，例如进入会话时出现的欢迎消息，或是会话过程中命中敏感词后的提示消息等场景，当然也可以用自定义消息实现，只是相对复杂一些。
 
 ### <span id="系统通知">系统通知</span>
 
 - 概念
 
-属于云信内置的系统通知，包括入群申请、入群邀请、好友验证、好友添加和删除。只有在线和离线，没有漫游。没有通知栏提醒（如有需要，第三方自行实现）。
+属于云信内建的系统通知，其对应的数据结构为 `SystemMessage`， 由网易云信服务器推送给用户的通知类消息，用于网易云信系统类的事件通知。现在主要包括群变动的相关通知，例如入群申请，入群邀请等，如果第三方应用还托管了好友关系，好友的添加、删除也是这个类型的通知。系统通知由 SDK 负责接收和存储，并提供较简单的未读数管理。只有在线和离线，没有漫游。没有通知栏提醒（如有需要，第三方自行实现）。
 
 - 使用场景
 
@@ -3121,7 +3472,9 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 - 概念
 
-提供给第三方自定义的全局的通知类型。只有在线和离线，没有漫游，没有通知栏提醒（第三方自行实现）。
+提供给第三方自定义的全局的通知类型，其对应的数据结构为 `CustomNotification`。只有在线和离线，没有漫游，没有通知栏提醒（第三方自行实现）。
+
+自定义通知和自定义消息的不同之处在于，自定义消息归属于会话中的消息体系内，由 SDK 存储在消息数据库中，与网易云信的其他内建消息类型一同展现给用户。而自定义通知主要用于第三方的一些事件状态通知，网易云信不存储，也不解释这些通知，网易云信仅仅负责替第三方传递和通知这些事件，起到透传的作用。
 
 - 使用场景
 
