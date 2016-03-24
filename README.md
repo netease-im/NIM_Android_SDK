@@ -7,9 +7,11 @@
 - 网络连接管理
 - 登录认证服务
 - 消息传输服务
-- 群组管理/消息服务
+- 群组管理/聊天室/会话服务
 - 消息存储服务
+- 用户资料、好友关系托管服务
 - 实时语音视频通话
+- 实时会话（白板）服务
 
 ## <span id="开发准备">开发准备</span>
 
@@ -40,7 +42,7 @@ libs
 │   └── librtc_network.so
 │   └── librts_network.so
 ├── nim-sdk-1.0.0.jar
-├── nrtc-sdk-1.0.0.jar（音视频需要）
+├── nrtc-sdkjar（音视频需要）
 └── cosinesdk.jar (Android 后台保活需要)
 ```
 
@@ -49,9 +51,9 @@ libs
 以上文件列表中，nim-sdk-1.0.0.jar (版本号可能会不同)为网易云信 SDK，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
 
 > 注意：如果你只需要 SDK 的基础功能（不含音视频及实时会话服务），则 so 库只需要 libne_audio.so 和 libcosine.so 两个，没有 librtc\*.so、librts\*.so，可以去掉 nrtc-sdk.1.0.0.jar；
-如果需要音视频功能，so 库需要加上 librtc\*.so，还需加上 nrtc-sdk.1.0.0.jar；
+如果需要音视频功能，so 库需要加上 librtc\*.so，还需加上 nrtc-sdk.jar；
 如果需要实时会话（白板）服务，so 库需要加上librts\*.so；
-如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ( AndroidManifest.xml 文件中相关的安卓保活的配置也可以删去)。 
+如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 
 
 如果你的 APP 的 libs 里面只包含 armeabi 一个文件夹，为了保证在 arm-v7a 上有较好的性能，以及兼容各个平台，可将各目录下的 so 文件名改为原文件名加上"_{arch_of_cpu}"，然后统一放到 armeabi 目录下，SDK 也会加载到正确版本的so库。改名后的目录结构如下：
 
@@ -75,7 +77,6 @@ libs
 │   └── librtc_network_x86.so
 │   ├── librts_network_x86.so
 ├── nim-sdk-1.0.0.jar
-├── netty-4.0.23-for-yx.final.jar
 ├── nrtc-sdk-1.1.0.jar
 └── cosinesdk.jar
 ```
@@ -200,7 +201,7 @@ SDK 由于需要保持后台运行，典型场景下会在独立进程中运行�
 
 观察者接口的方法名都是以 observe 开头，并包含一个 register 参数，该值为`true`时，为注册观察者，为`false`时，注销观察者。开发者要在不需要观察者时，主动注销，以免造成资源泄露。
 
-> 注意：除开 `NIMClient.init` 接口外，其他 SDK 暴露的接口都只能在 UI 进程调用。如果 APP 包含远程 service，该 APP 的 Application 的 onCreate 会多次调用。因此，如果需要在 onCreate 中调用除 init 接口外的其他接口，应先判断当前所属进程，并只有在当前是 UI 进程时才调用。判断代码如下：
+> 注意：除了 `NIMClient.init` 接口外，其他 SDK 暴露的接口都只能在 UI 进程调用。如果 APP 包含远程 service，该 APP 的 Application 的 onCreate 会多次调用。因此，如果需要在 onCreate 中调用除 init 接口外的其他接口，应先判断当前所属进程，并只有在当前是 UI 进程时才调用。判断代码如下：
 
 ```java
 public static boolean inMainProcess(Context context) {
@@ -254,8 +255,8 @@ SDK 提供的接口主要按照业务进行分类，大致说明如下：
 - `SystemMessageObserve`: 系统通知观察者。
 - `FriendService`: 好友关系托管接口，目前支持添加、删除好友、获取好友列表、黑名单、设置消息提醒。
 - `FriendServiceObserve`: 好友关系变更、黑名单变更通知观察者。
-- `UserServie`: 用户资料托管接口，提供获取用户资料、修改个人资料等。
-- `UserServieObserve`: 用户资料托管接口，提供获取用户资料、修改个人资料等。
+- `UserService`: 用户资料托管接口，提供获取用户资料、修改个人资料等。
+- `UserServiceObserve`: 用户资料托管接口，提供获取用户资料、修改个人资料等。
 - `AVChatManager`: 语音视频通话接口。
 - `RTSManager`: 实时会话接口。
 - `NosService`: 网易云存储服务，提供文件上传和下载。
@@ -512,11 +513,13 @@ NIMClient.getService(AuthService.class).openLocalCache(account);
 
 ### <span id="断线重连机制">断线重连机制</span>
 
-SDK有两种机制保证断线重连的稳定性：
+SDK 提供三种断线重连的策略：
 
-1\. SDK拥有定时器，在网络状况良好的情况下，会定时判断是否需要重连，如果需要则重连。
+1\. 当网络由连通变为断开时，SDK 会启动立即上报网络断开的状态，并启动重连定时器，采用特定的策略并根据当前网络状态进行重连（如果 APP 处于后台，重连时间间隔会较长）。
 
-2\. SDK会监听手机的网络状况，当监听到手机断网重连上网络的通知后，会进行重连工作。
+2\. SDK会监听设备的网络连接状况，当监听到手机断网重连上网络的通知后，会立即进行重连并登录。
+
+3\. 应用长时间处于后台（后台进程可能活着但网络连通被系统关闭）后切回到前台（恢复网络连通），SDK 监测到当前处于未登录状态，会在短时间内进行重连。
 
 ## <span id="基础消息功能">基础消息功能</span>
 
@@ -524,7 +527,7 @@ SDK有两种机制保证断线重连的稳定性：
 
 SDK 提供一套完善的消息传输管理服务，包括收发消息，存储消息，上传下载附件，管理最近联系人等。
 
-SDK 原生支持发送文本，语音，图片，视频，提醒（通知）和地理位置等 6 种类型消息，同时支持用户发送自定义的消息类型。
+SDK 原生支持发送文本，语音，图片，视频，文件，地理位置，提醒等 7 种类型消息，同时支持用户发送自定义的消息类型。
 
 网易云信消息对象均为 `IMMessage`，不同消息类型以 `MsgTypeEnum` 作区分，消息内容根据类型不同也不一样。文本消息最为简单，消息内容就是 `content` 字符串。其他消息类型均带有一个消息附件对象 `MsgAttachment`，该对象在传输时一般序列化为 json 格式字符串。内建的消息附件主要有以下几种：
 - LocationAttachment： 位置消息附件对象类型。
@@ -595,7 +598,6 @@ NIMClient.getService(MsgService.class).sendMessage(message);
 IMMessage message = MessageBuilder.createTipMessage(
 	sessionId,   // 聊天对象的 ID，如果是单聊，为用户帐号，如果是群聊，为群组 ID
 	sessionType, // 聊天类型，单聊或群组
-	content      // 提醒内容Map（本质是设置到扩展字段remoteExtension中， 在读取消息时也需要读取该字段， RemoteExtension 见下文）
 	);
 NIMClient.getService(MsgService.class).sendMessage(message);
 ```
@@ -1018,7 +1020,7 @@ public class SnapChatAttachment extends FileAttachment {
 	    path = data.getString(KEY_PATH);
         md5 = data.getString(KEY_MD5);
         url = data.getString(KEY_URL);
-        size = data.getLong(KEY_SIZE);
+        size = data.containsKey(KEY_SIZE) ? data.getLong(KEY_SIZE) : 0;
     }
 }
 ```
@@ -1065,15 +1067,23 @@ NIMClient.getService(MsgService.class).registerCustomAttachmentParser(new Custom
 
 ### <span id="Tip消息">Tip消息</span>
 
-Tip 消息主要用于会话内的通知提醒，可以看做是自定义消息的简化，有独立的消息类型 MsgTypeEnum.tip 。在发送 Tip 消息时可以指定一个 content ，类型为 Map 。本质上 SDK 是使用扩展字段 remoteExtension 进行存储，因此接收方收到 Tip 消息后，应读取消息的 remoteExtension 来获取发送方指定的 content。 
-区别于自定义消息，Tip 消息不支持 setAttachment，如果要使用 Attachment 请使用自定义消息。
+Tip 消息主要用于会话内的通知提醒，可以看做是自定义消息的简化，有独立的消息类型 MsgTypeEnum.tip 。 
+区别于自定义消息，Tip 消息暂不支持 setAttachment，如果要使用 Attachment 请使用自定义消息。
 Tip 消息使用场景例如：进入会话时出现的欢迎消息，或是会话过程中命中敏感词后的提示消息等场景，当然也可以用自定义消息实现，只是相对复杂一些。
+
+```java
+// 演示：发送一条在线的Tip消息
+IMMessage msg = MessageBuilder.createTipMessage(getAccount(), getSessionType());
+msg.setContent("这Tip消息内容");
+sendMessage(msg);
+```
 
 ```java
 // 演示：向群里插入一条Tip消息，使得该群能立即出现在最近联系人列表（会话列表）中，满足部分开发者需求。
 Map<String, Object> content = new HashMap<>(1);
 content.put("content", "成功创建高级群");
-IMMessage msg = MessageBuilder.createTipMessage(team.getId(), SessionTypeEnum.Team, content);
+IMMessage msg = MessageBuilder.createTipMessage(team.getId(), SessionTypeEnum.Team);
+msg.setRemoteExtension(content);
 CustomMessageConfig config = new CustomMessageConfig();
 config.enableUnreadCount = false;
 msg.setConfig(config);
@@ -1088,6 +1098,39 @@ NIMClient.getService(MsgService.class).saveMessageToLocal(msg, true);
 - 消息状态、消息附件状态、消息附件内容的更新接口为 MsgService#updateIMMessageStatus。
 
 - 消息本地扩展字段 LocalExtension 的更新接口为 MsgService#updateIMMessage。
+
+### <span id="已读回执">已读回执</span>
+
+网易云信提供点对点消息的已读回执。注意：此功能仅对 P2P 消息中有效。
+
+发送消息已读回执场景：
+- 进入 P2P 聊天界面。
+- 处于聊天界面中，收到当前会话新消息时。
+
+```java
+/**
+* 发送消息已读回执
+* @param sessionId 会话ID（聊天对象账号）
+* @param message 已读的消息
+*/
+NIMClient.getService(MsgService.class).sendMessageReceipt(sessionId, message);
+```
+
+监听已读回执
+
+监听到已读回执，根据 IMMessage 中的 `isRemoteRead()` 方法来判断该条消息是否已读，并刷新界面。第三方可以根据已读回执观察者来监听这个消息，示例如下：
+
+```java
+// 注册/注销观察者
+NIMClient.getService(MsgServiceObserve.class).observeMessageReceipt(messageReceiptObserver, register);
+
+private Observer<List<MessageReceipt>> messageReceiptObserver = new Observer<List<MessageReceipt>>() {
+        @Override
+        public void onEvent(List<MessageReceipt> messageReceipts) {
+            receiveReceipt();
+        }
+    };
+```
 
 ## <span id="消息提醒">消息提醒</span>
 
@@ -1790,7 +1833,7 @@ NIMClient.getService(TeamService.class)
 
 ### <span id="获取群组成员">获取群组成员</span>
 
-由于群组成员数据比较大，且除开进入群组成员列表界面外，其他地方均不需要群组成员列表的数据，因此 SDK 不会在登录时同步群组成员数据，而是按照按需获取的原则，当上层主动调用获取指定群的群组成员列表时，才判断是否需要同步。获取群组成员的示例代码如下：
+由于群组成员数据比较大，且除了进入群组成员列表界面外，其他地方均不需要群组成员列表的数据，因此 SDK 不会在登录时同步群组成员数据，而是按照按需获取的原则，当上层主动调用获取指定群的群组成员列表时，才判断是否需要同步。获取群组成员的示例代码如下：
 
 ```java
 // 该操作有可能只是从本地数据库读取缓存数据，也有可能会从服务器同步新的数据，因此耗时可能会比较长。
@@ -1878,7 +1921,7 @@ NIMClient.getService(ChatRoomService.class).exitChatRoom(roomId);
 ```java
 // 创建文本消息
 ChatRoomMessage message = ChatRoomMessageBuilder.createChatRoomTextMessage(
-	sessionId, // 聊天对象的 ID，即用户帐号
+	sessionId, // 聊天室id
 	content // 文本内容
 	);
 	
@@ -1943,7 +1986,7 @@ NIMClient.getService(ChatRoomService.class)
 
 #### <span id="获取成员信息">获取成员信息</span>
 
-该接口可以获取固定成员信息和游客信息。
+该接口可以获取固定成员信息、仅在线的固定成员信息及游客信息。
 
 固定成员有四种类型，分别是创建者,管理员,普通用户,受限用户。禁言用户和黑名单用户都属于受限用户。
 
@@ -1955,8 +1998,8 @@ NIMClient.getService(ChatRoomService.class)
  *
  * @param roomId          聊天室id
  * @param memberQueryType 成员查询类型。见{@link MemberQueryType}
- * @param time            固定成员列表用updatetime,
- *                        有课列表用enterTime，
+ * @param time            查询固定成员列表用ChatRoomMember.getUpdateTime,
+ *                        查询游客列表用ChatRoomMember.getEnterTime，
  *                        填0会使用当前服务器最新时间开始查询，即第一页，单位毫秒
  * @param limit           条数限制
  * @return InvocationFuture 可以设置回调函数。回调中返回成员信息列表
@@ -2069,6 +2112,8 @@ NIMClient.getService(ChatRoomService.class)
 ```
 
 #### <span id="设置普通成员">设置普通成员</span>
+
+即将游客变为固定成员中的普通成员身份。
 
 - 设为普通成员时, 会收到类型为 `ChatRoomCommonAdd` 的聊天室通知消息。
 - 移除普通成员时, 会收到类型为 `ChatRoomCommonRemove` 的聊天室通知消息。
@@ -2704,10 +2749,14 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 
 #### 发起通话（主叫方）
 
-主叫方可以发起语音或者视频通话，通话类型见 `AVChatTypeEnum`，如果发起的是视频通话，需要传入 `VideoChatParam`，其中包含视频采集用的 SurfaceView（一般只需要在界面布局里放置一个 1×1 的 SurfaceView）及视频旋转角度，如果发起的是语音通话，该参数填 null。
+主叫方可以发起语音或者视频通话，通话类型见 `AVChatTypeEnum`。
+
+发起的是视频通话，需要传入 `VideoChatParam`，其中包含视频采集用的 SurfaceView（一般只需要在界面布局里放置一个 1×1 的 SurfaceView）及视频旋转角度，如果发起的是语音通话，该参数填 null。 
+
+可选参数 `AVChatNotifyOption` 包含iOS的通知配置以及可自定义的扩展消息。
 
 ```java
-AVChatManager.getInstance().call(account, callType, videoParam, new AVChatCallback<AVChatData>() { ... });
+AVChatManager.getInstance().call(account, callType, videoParam, notifyOption，new AVChatCallback<AVChatData>() { ... });
 ```
 
 #### 监听来电（被叫方）
@@ -3165,7 +3214,7 @@ void onRecordEnd(String[] files, int event);
 #### 发起会话/创建数据通道（主叫方）
 
 目前我们提供两种数据通道：TCP 通道和语音通道，后续会支持 UDP 通道。通道类型见  `RTSTunType`,可选参数见  `RTSOptions`（包含推送内容、发起方附带给其他参与者的内容、是否录制通道数据等）
-一个会话可以同时创建多个通道，但全局只能有一个语音通道。发起会话时，RTSOptions 中，参数 pushContent  填入要推送到 iOS 端的文本（不需要 填 null），参数 extra 填写发起方附带给其他参与者的内容,开发者可以封装自己的数据。
+一个会话可以同时创建多个通道，但全局只能有一个语音通道。发起会话时，RTSNotifyOption 中可进行iOS端推送通知自定义配置，同时也包含一个可自定的扩展字段。
 例如：
 
 ```java
@@ -3179,7 +3228,7 @@ String extra = "extra_data";
 RTSOptions options = new RTSOptions().setPushContent(pushContent).setExtra(extra).setRecordAudioTun(true)
             .setRecordTCPTun(true);
 
-sessionId = RTSManager.getInstance().start(account, types, options, new RTSCallback<RTSData>() { ... });
+sessionId = RTSManager.getInstance().start(account, types, options, notifyOption, new RTSCallback<RTSData>() { ... });
 if (sessionId == null) {
     // 发起会话失败,音频通道同时只能有一个会话开启
     onFinish();
@@ -3432,7 +3481,7 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 - 概念
 
-属于会话中的一种消息，其对应的数据结构为 `IMMessage`，消息类型为 MsgTypeEnum.notification，有在线、离线、漫游。继承 NotificationAttachment，目前用于（已操作完成的）群通知事件。包含 MemberChangeAttachment , UpdateTeamAttachment , LeaveTeamAttachment 和 DismissAttachment 。没有通知栏提醒（如有需要，第三方自行实现）。
+属于会话中的一种消息，其对应的数据结构为 `IMMessage`，消息类型为 MsgTypeEnum.notification，有在线、离线、漫游。继承 NotificationAttachment，目前用于（已操作完成的）群通知事件，不计入消息未读数。包含 MemberChangeAttachment , UpdateTeamAttachment , LeaveTeamAttachment 和 DismissAttachment 。没有通知栏提醒（如有需要，第三方自行实现）。
 
 - 使用场景
 
