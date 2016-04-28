@@ -15,9 +15,9 @@
 
 ## <span id="开发准备">开发准备</span>
 
-首先从[网易云信官网](http://netease.im/?page=download  "target=_blank")下载 Android SDK。开发者可以根据实际需求，配置类库。
+首先从[网易云信官网](http://netease.im/im-sdk-demo   "target=_blank")下载 Android SDK。开发者可以根据实际需求，配置类库。
 
-### <span id="类库配置">类库配置</span>
+注：SDK 兼容所有版本，Demo 兼容 Android 2.3+。### <span id="类库配置">类库配置</span>
 
  SDK 包的libs文件夹中，包含了网易云信的 jar 文件，各 jni 库文件夹以及 SDK 依赖的第三方库，列表如下：
  
@@ -26,20 +26,20 @@ libs
 ├── armeabi
 │   ├── libne_audio.so （高清语音录制功能必须）
 │   └── libcosine.so （Android 后台保活需要）
-│   ├── librtc_engine.so （音视频需要）
-│   └── librtc_network.so （音视频需要）
+│   ├── libnrtc_engine.so （音视频需要）
+│   └── libnrtc_network.so （音视频需要）
 │   └── librts_network.so （实时会话服务需要）
 ├── armeabi-v7a
 │   ├── libne_audio.so
 │   └── libcosine.so
-│   ├── librtc_engine.so
-│   └── librtc_network.so
+│   ├── libnrtc_engine.so
+│   └── libnrtc_network.so
 │   └── librts_network.so
 ├── x86
 │   ├── libne_audio.so
 │   └── libcosine.so
-│   ├── librtc_engine.so
-│   └── librtc_network.so
+│   ├── libnrtc_engine.so
+│   └── libnrtc_network.so
 │   └── librts_network.so
 ├── nim-sdk-1.0.0.jar
 ├── nrtc-sdkjar（音视频需要）
@@ -50,8 +50,8 @@ libs
 
 以上文件列表中，nim-sdk-1.0.0.jar (版本号可能会不同)为网易云信 SDK，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
 
-> 注意：如果你只需要 SDK 的基础功能（不含音视频及实时会话服务），则 so 库只需要 libne_audio.so 和 libcosine.so 两个，没有 librtc\*.so、librts\*.so，可以去掉 nrtc-sdk.1.0.0.jar；
-如果需要音视频功能，so 库需要加上 librtc\*.so，还需加上 nrtc-sdk.jar；
+> 注意：如果你只需要 SDK 的基础功能（不含音视频及实时会话服务），则 so 库只需要 libne_audio.so 和 libcosine.so 两个，没有 libnrtc\*.so、librts\*.so，可以去掉 nrtc-sdk.1.0.0.jar；
+如果需要音视频功能，so 库需要加上 libnrtc\*.so，还需加上 nrtc-sdk.jar；
 如果需要实时会话（白板）服务，so 库需要加上librts\*.so；
 如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 
 
@@ -62,19 +62,19 @@ libs
 ├── armeabi
 │   ├── libne_audio_armeabi.so
 │   ├── libcosine_armeabi.so
-│   ├── librtc_engine_armeabi.so
-│   ├── librtc_network_armeabi.so
+│   ├── libnrtc_engine_armeabi.so
+│   ├── libnrtc_network_armeabi.so
 │   ├── librts_network_armeabi.so
 │   ├── libne_audio_armeabi-v7a.so
 │   ├── libcosine_armeabi-v7a.so
-│   ├── librtc_engine_armeabi-v7a.so
-│   └── librtc_network_armeabi-v7a.so
+│   ├── libnrtc_engine_armeabi-v7a.so
+│   └── libnrtc_network_armeabi-v7a.so
 │   ├── librts_network_armeabi-v7a.so
 ├── x86(如果不考虑支持x86，可不包含)
 │   ├── libne_audio_x86.so
 │   ├── libcosine_x86.so
-│   ├── librtc_engine_x86.so
-│   └── librtc_network_x86.so
+│   ├── libnrtc_engine_x86.so
+│   └── libnrtc_network_x86.so
 │   ├── librts_network_x86.so
 ├── nim-sdk-1.0.0.jar
 ├── nrtc-sdk-1.1.0.jar
@@ -261,12 +261,16 @@ SDK 提供的接口主要按照业务进行分类，大致说明如下：
 - `RTSManager`: 实时会话接口。
 - `NosService`: 网易云存储服务，提供文件上传和下载。
 
-### <span id="SDK 数据目录结构">SDK 数据目录结构</span>
+### <span id="SDK 数据缓存目录结构">SDK 数据缓存目录结构</span>
 
-当收到多媒体消息后，SDK 会负责下载这些多媒体文件，同时 SDK 还要记录一些 log，因此 SDK 需要一个数据缓存目录。该目录由第三方 APP 通过 `SDKOptions` 传入，默认为 “/{外卡根目录}/{app\_package\_name}/nim/”。如果你的 APP 需要清除缓存功能，可扫描该目录下的文件，按照你们的规则清理即可。
-缓存目录下面包含如下子目录：
-- log: SDK日志包含一个文件：nim\_sdk.log，大小一般不超过 8M。音视频日志包含3个文件：avchat\_a.log, avchat\_n.log, rts.log。默认路径为：
-**/{外卡根目录}/{app\_package\_name}/nim/log/**
+当收到多媒体消息后，SDK 会负责下载这些多媒体文件，同时 SDK 还要记录一些关键的 log，因此 SDK 需要一个数据缓存目录。
+该目录可以在 SDK 初始化时通过 `SDKOptions#sdkStorageRootPath` 进行设置。
+如果不设置，则默认为“/{外卡根目录}/{app\_package\_name}/nim/”，其中外卡根目录获取方式为 Environment.getExternalStorageDirectory().getPath()。
+如果你的 APP 需要清除缓存功能，可扫描该目录下的文件，按照你们的规则清理即可。 在 SDK 初始化完成后可以通过 `NimClient#getSdkStorageDirPath` 获取 SDK 数据缓存目录。
+
+SDK数据缓存目录下面包含如下子目录：
+- log: SDK日志包含一个文件：nim\_sdk.log，大小一般不超过 8M。音视频通话的日志包含3个文件：avchat\_n.log, nrtc\_engine.log, nrtc\_net.log。
+默认路径为：**/{外卡根目录}/{app\_package\_name}/nim/log/**，如果在 SDKOptions 中配置过 sdkStorageRootPath，那么日志路径为“{sdkStorageRootPath}/log/”。
 - file: 文件消息文件
 - image: 图片消息文件
 - audio：语音消息文件
@@ -287,6 +291,11 @@ public class NimApplication extends Application {
 		NIMClient.init(this, loginInfo(), options());
 		
 		// ... your codes
+		if (inMainProcess()) {
+			// 注意：以下操作必须在主进程中进行
+            // 1、UI相关初始化操作
+            // 2、相关Service调用
+        }
 	}
 
 	// 如果返回值为 null，则全部使用默认参数。
@@ -319,12 +328,12 @@ public class NimApplication extends Application {
              public UserInfo getUserInfo(String account) {
                  return null;
              }
-             
+
         	 @Override
         	 public int getDefaultIconResId() {
             	 return R.drawable.avatar_def;
         	 }
-             
+
              @Override
              public Bitmap getTeamIcon(String tid) {
                  return null;
@@ -336,7 +345,7 @@ public class NimApplication extends Application {
         	 }
 
              @Override
-             public String getDisplayNameForMessageNotifier(String account, String sessionId, 
+             public String getDisplayNameForMessageNotifier(String account, String sessionId,
                 SessionTypeEnum sessionType) {
                  return null;
              }
@@ -363,7 +372,7 @@ public class NimApplication extends Application {
 public class LoginActivity extends Activity {
 	public void doLogin() {
 		LoginInfo info = new LoginInfo(); // config...
-		RequestCallback<LoginInfo> callback = 
+		RequestCallback<LoginInfo> callback =
 			new RequestCallback<LoginInfo>() {
 			// 可以在此保存LoginInfo到本地，下次启动APP做自动登录用
 		};
@@ -374,33 +383,38 @@ public class LoginActivity extends Activity {
 ```
 登录成功后，可以将用户登录信息 LoginInfo 信息保存到本地，下次启动APP时，读取本地保存的 LoginInfo 进行自动登录。
 
+说明：在手动登录过程中，如果网络断开或者与云信服务器建立连接失败，会返回登录失败（错误码 415），在线状态切换为 NET_BROKEN；
+如果连接建立成功，SDK 发出登录请求后云信服务器一直没有响应，那么 30s 后将导致登录超时，那么会返回登录失败（错误码 408），在线状态切换为 UNLOGIN。
+
+> 注意：从SDK 2.2.0版本开始， LoginInfo 中添加了可选属性 AppKey，支持在登录的时候设置 AppKey；如果不填，则优先使用 SDKOptions 中配置的 AppKey；如果也没有，则使用 AndroidManifest.xml 中配置的 AppKey（默认方式）。建议使用默认方式。
+
 > 特别提醒: 登录成功之前，调用服务器相关请求接口（由于与云信服务器连接尚未建立成功，会导致发包超时）会报408错误；调用本地数据库相关接口（手动登录的情况下数据库未打开），会报1000错误，建议用户在登录成功之后，再进行相关接口调用。
 
 ### <span id="自动登录">自动登录</span>
 
-如果上次登录已经存在用户登录信息，那么在初始化 SDK 时传入 `LoginInfo`，SDK 后台会自动登录，并在登录发起前即打开相关数据库，供上层调用。开发者此时无需再手动调用登录接口，可以跳过登录界面直接进入主界面。
+如果上次登录已经存在用户登录信息，那么在初始化 SDK 时传入 `LoginInfo`，SDK 后台会自动登录，并在登录发起前即打开相关账号的数据库，供上层调用。开发者此时无需再手动调用登录接口，可以跳过登录界面直接进入主界面。
 
 进入主界面后，可以通过监听用户在线状态（每次注册用户在线状态监听都会立即回调通知当前的用户在线状态），或者主动获取当前用户在线状态，来判断自动登录是否成功。
 
-在初始化 SDK 时自动登录示例： 
+在初始化 SDK 时自动登录示例：
 
 ```java
 public class NimApplication extends Application {
 
 	public void onCreate() {
 		// ... your codes
-		
+
 		// SDK初始化（启动后台服务，若已经存在用户登录信息，SDK 将完成自动登录）
-		NIMClient.init(this, loginInfo(), options()); 
-		
+		NIMClient.init(this, loginInfo(), options());
+
 		// ... your codes
 	}
-	
-	private LoginInfo getLoginInfo() {
+
+	private LoginInfo loginInfo() {
 	    // 从本地读取上次登录成功时保存的用户登录信息
         String account = Preferences.getUserAccount();
         String token = Preferences.getUserToken();
-    
+
         if (!TextUtils.isEmpty(account) && !TextUtils.isEmpty(token)) {
             DemoCache.setAccount(account.toLowerCase());
             return new LoginInfo(account, token);
@@ -410,6 +424,8 @@ public class NimApplication extends Application {
     }
 }
 ```
+说明：在自动登录过程中，如果没有网络或者网络断开或者与云信服务器建立连接失败，会上报在线状态 NET_BROKEN，表示当前网络不可用，当网络恢复的时候，会触发断网自动重连；如果连接建立成功但登录超时，会上报在线状态 UNLOGIN，并触发自动重连，无需上层手动调用登录接口。
+
 > 特别提醒: 在自动登录成功前，调用服务器相关请求接口（由于与云信服务器连接尚未建立成功，会导致发包超时）会报408错误。但可以调用本地数据库相关接口获取本地数据（自动登录的情况下会自动打开相关账号的数据库）。自动登录过程中也会有用户在线状态回调。
 
 ### <span id="监听用户在线状态">监听用户在线状态</span>
@@ -421,9 +437,16 @@ NIMClient.getService(AuthServiceObserver.class).observeOnlineStatus(
 	new Observer<StatusCode> () {
 		public void onEvent(StatusCode status) {
 			Log.i("tag", "User status changed to: " + status);
+			if (code.wontAutoLogin()) {
+                // 被踢出、账号被禁用、密码错误等情况，自动登录失败，需要返回到登录界面进行重新登录操作
+            }
 		}
 }, true);
 ```
+
+被踢出的情况说明：
+1. 当用户在线时被踢出，会立刻收到被踢出的状态变更通知；
+2. 当用户离线后在其他设备成功登录，又在本设备重新自动登录时，也会收到被踢出的状态变更通知。
 
 开发者也可以主动获取当前用户在线状态：
 
@@ -513,13 +536,13 @@ NIMClient.getService(AuthService.class).openLocalCache(account);
 
 ### <span id="断线重连机制">断线重连机制</span>
 
-SDK 提供三种断线重连的策略：
+SDK 提供三种断线重连的策略（重新建立与云信服务器的连接并重新登录）：
 
 1\. 当网络由连通变为断开时，SDK 会启动立即上报网络断开的状态，并启动重连定时器，采用特定的策略并根据当前网络状态进行重连（如果 APP 处于后台，重连时间间隔会较长）。
 
 2\. SDK会监听设备的网络连接状况，当监听到手机断网重连上网络的通知后，会立即进行重连并登录。
 
-3\. 应用长时间处于后台（后台进程可能活着但网络连通被系统关闭）后切回到前台（恢复网络连通），SDK 监测到当前处于未登录状态，会在短时间内进行重连。
+3\. 应用长时间处于后台（后台进程可能活着但网络连接被系统切断）后切回到前台（恢复网络连通），SDK 监测到当前处于未登录状态，会在短时间内进行重连。
 
 ## <span id="基础消息功能">基础消息功能</span>
 
@@ -678,7 +701,7 @@ NIMClient.getService(MsgServiceObserve.class).observeMsgStatus(
 		}
 	}
 }, true);
-	
+
 // 如果发送的多媒体文件消息，还需要监听文件的上传进度。
 NIMClient.getService(MsgServiceObserve.class).observerAttachProgress(
 	new Observer(AttachProgress progress) {
@@ -951,7 +974,7 @@ public class CustomAttachParser implements MsgAttachmentParser {
 
         return attachment;
     }
-    
+
 	public static String packData(int type, JSONObject data) {
         JSONObject object = new JSONObject();
         object.put(KEY_TYPE, type);
@@ -964,7 +987,7 @@ public class CustomAttachParser implements MsgAttachmentParser {
 }
 ```
 
-最后，将该附件解析器注册到 SDK 中。为了保证生成历史消息时能够正确解析自定义附件，注册一般应放在 Application 的 onCreate 中完成。
+最后，将该附件解析器注册到 SDK 中。为了保证生成历史消息时能够正确解析自定义附件，注册一般应放在 Application 的 onCreate 中 的主进程判断语句内完成。
 
 ```java
 NIMClient.getService(MsgService.class).registerCustomAttachmentParser(new CustomAttachParser()); // 监听的注册，必须在主进程中。
@@ -1000,14 +1023,14 @@ public class SnapChatAttachment extends FileAttachment {
 	        if (!send && !TextUtils.isEmpty(path)) {
                 data.put(KEY_PATH, path);
             }
-            
+
             if (!TextUtils.isEmpty(md5)) {
                 data.put(KEY_MD5, md5);
             }
 			// 注意：这段代码一定要写。
 			// SDK在调toJson的时候 父类FileAttachemnt的url才有值。
 			// 这个值是sdk自动赋值的。
-            data.put(KEY_URL, url); 
+            data.put(KEY_URL, url);
             data.put(KEY_SIZE, size);
         } catch (Exception e) {
             e.printStackTrace();
@@ -1067,7 +1090,7 @@ NIMClient.getService(MsgService.class).registerCustomAttachmentParser(new Custom
 
 ### <span id="Tip消息">Tip消息</span>
 
-Tip 消息主要用于会话内的通知提醒，可以看做是自定义消息的简化，有独立的消息类型 MsgTypeEnum.tip 。 
+Tip 消息主要用于会话内的通知提醒，可以看做是自定义消息的简化，有独立的消息类型 MsgTypeEnum.tip 。
 区别于自定义消息，Tip 消息暂不支持 setAttachment，如果要使用 Attachment 请使用自定义消息。
 Tip 消息使用场景例如：进入会话时出现的欢迎消息，或是会话过程中命中敏感词后的提示消息等场景，当然也可以用自定义消息实现，只是相对复杂一些。
 
@@ -1103,22 +1126,28 @@ NIMClient.getService(MsgService.class).saveMessageToLocal(msg, true);
 
 网易云信提供点对点消息的已读回执。注意：此功能仅对 P2P 消息中有效。
 
-发送消息已读回执场景：
-- 进入 P2P 聊天界面。
+在会话界面中调用发送已读回执的接口并传入最后一条消息，即表示这之前的消息都已读，对端将收到此回执。
+
+发送消息已读回执的一般场景：
+- 进入 P2P 聊天界面（如果没有收到新的消息，反复进入调用发送已读回执接口， SDK 会自动过滤，只会发送一次给云信服务器）。
 - 处于聊天界面中，收到当前会话新消息时。
 
 ```java
 /**
 * 发送消息已读回执
 * @param sessionId 会话ID（聊天对象账号）
-* @param message 已读的消息
+* @param message 已读的消息(一般是当前接收的最后一条消息）
 */
 NIMClient.getService(MsgService.class).sendMessageReceipt(sessionId, message);
 ```
 
 监听已读回执
 
-监听到已读回执，根据 IMMessage 中的 `isRemoteRead()` 方法来判断该条消息是否已读，并刷新界面。第三方可以根据已读回执观察者来监听这个消息，示例如下：
+监听到已读回执，根据 IMMessage 中的 `isRemoteRead()` 方法来判断该条消息是否已读，并刷新界面。
+
+一般场景：一个会话显示一个已读回执（比该已读回执对应的消息时间早的消息都是已读），那么刷新界面时，可以倒序查找第一条 isRemoteRead 接口返回 true 的消息打上已读回执标记。注意：当删除带有已读回执标记的消息时，也应该刷新界面。
+
+第三方可以根据已读回执观察者来监听这个消息，示例如下：
 
 ```java
 // 注册/注销观察者
@@ -1130,6 +1159,18 @@ private Observer<List<MessageReceipt>> messageReceiptObserver = new Observer<Lis
             receiveReceipt();
         }
     };
+```
+
+### <span id="清空本地所有消息记录">清空本地所有消息记录</span>
+
+网易云信支持清空本地数据库中的所有消息记录。在清空数据记录的同时，可选择是否要同时清空最近联系人列表数据库。若最近联系人列表也被清空，会触发MsgServiceObserve#observeRecentContactDeleted(Observer, boolean)通知
+
+```
+/**
+* 清空本地所有消息记录
+* @param clearRecent 若为true，将同时清空最近联系人列表数据
+*/
+public void clearMsgDatabase(boolean clearRecent);
 ```
 
 ## <span id="消息提醒">消息提醒</span>
@@ -1235,18 +1276,18 @@ public class NimApplication extends Application {
     private SDKOptions getOptions() {
         SDKOptions options = new SDKOptions();
         ...
-        
+
         // 定制通知栏提醒文案（可选，如果不定制将采用SDK默认文案）
         options.messageNotifierCustomization = messageNotifierCustomization;
         return options;
     }
-    
+
     private MessageNotifierCustomization messageNotifierCustomization = new MessageNotifierCustomization() {
         @Override
         public String makeNotifyContent(String nick, IMMessage message) {
             return null; // 采用SDK默认文案
         }
-    
+
         @Override
         public String makeTicker(String nick, IMMessage message) {
             return null; // 采用SDK默认文案
@@ -1411,13 +1452,13 @@ Recorder 使用示例代码如下：
 
 // 定义录音过程回调对象
 IAudioRecordCallback callback = new IAudioRecordCallback () {
-	
+
 	void onRecordReady() {
 		// 初始化完成回调，提供此接口用于在录音前关闭本地音视频播放（可选）
 	}
 
     void onRecordStart(File audioFile, RecordType recordType) {
-	    // 开始录音回调 
+	    // 开始录音回调
     }
 
     void onRecordSuccess(File audioFile, long audioLength, RecordType recordType) {
@@ -1438,9 +1479,9 @@ IAudioRecordCallback callback = new IAudioRecordCallback () {
 };
 // 初始化recorder
 AudioRecorder recorder = new AudioRecorder(
-	context, 
+	context,
 	RecordType.AAC, // 录制音频类型（aac/amr)
-	maxDuration, // 最长录音时长，到该长度后，会自动停止录音 
+	maxDuration, // 最长录音时长，到该长度后，会自动停止录音
 	callback // 录音过程回调
 	);
 // 开始录音
@@ -1481,7 +1522,7 @@ OnPlayListener listener = new OnPlayListener() {
 // 构造播放器对象
 AudioPlayer player = new AudioPlayer(context, filePath, listener);
 
-// 开始播放。需要传入一个 Stream Type 参数，表示是用听筒播放还是扬声器。取值可参见 
+// 开始播放。需要传入一个 Stream Type 参数，表示是用听筒播放还是扬声器。取值可参见
 // android.media.AudioManager#STREAM_***
 // AudioManager.STREAM_VOICE_CALL 表示使用听筒模式
 // AudioManager.STREAM_MUSIC 表示使用扬声器模式
@@ -1749,6 +1790,35 @@ NIMClient.getService(TeamService.class).updateTeam(teamId, TeamFieldEnum, value)
 
 修改后，群内所有成员会收到一条消息类型为 `notification` 的 `IMMessage`，带有一个消息附件，类型为 `UpdateTeamAttachment`。如果注册了群组资料变化观察者，观察者也会收到通知，见[监听群组资料变化](#监听群组资料变化)。
 
+### <span id ="修改成员的群昵称">修改成员的群昵称</span>
+
+群主和管理员修改群内其他成员的群昵称，仅群主和管理员拥有权限。
+
+群主可以修改所有人的群昵称。管理员只能修改普通群成员的群昵称。
+
+```
+/**
+* 修改成员的群昵称
+* @param teamId  所在群组ID
+* @param account 要修改的群成员帐号
+* @param nick    新的群昵称
+* @return InvocationFuture 可以设置回调函数，监听操作结果
+*/
+NIMClient.getService(TeamService.class).updateMemberNick(teamId, account, nick).setCallback(new RequestCallback<Void>() {...});
+```
+
+### <span id="修改自己的群昵称">修改自己的群昵称</span>
+
+```
+/**
+* 修改自己的群昵称
+* @param teamId  所在群组ID
+* @param nick    新的群昵称
+* @return InvocationFuture 可以设置回调函数，监听操作结果
+*/
+NIMClient.getService(TeamService.class).updateMyTeamNick(teamId, nick).setCallback(new RequestCallback<Void>() {...});
+```
+
 ### <span id="监听群组资料变化">监听群组资料变化</span>
 
 由于获取群组资料需要跨进程异步调用，开发者最好能在第三方 APP 中做好群组资料缓存，查询群组资料时都从本地缓存中访问。在群组资料有变化时，SDK 会告诉注册的观察者，此时，第三方 APP 可更新缓存，并刷新界面。
@@ -1861,7 +1931,7 @@ NIMClient.getService(TeamService.class).queryTeamMember(teamId, account)
 ```
 
 群成员资料 SDK 本地存储说明：
-当自己退群、或者被移出群时，本地数据库会继续保留这个群成员资料，只是设置了无效标记，此时依然可以通过 queryTeamMember 查出来该群成员资料，只是 isInTeam 将返回 false 。 
+当自己退群、或者被移出群时，本地数据库会继续保留这个群成员资料，只是设置了无效标记，此时依然可以通过 queryTeamMember 查出来该群成员资料，只是 isInTeam 将返回 false 。
 
 ### <span id="查询高级群资料">查询高级群资料</span>
 
@@ -1872,7 +1942,7 @@ NIMClient.getService(TeamService.class).searchTeam(teamId)
 	.setCallback(new RequestCallback<Team>() { ... });
 ```
 
-## <span id="聊天室">聊天室</span> 
+## <span id="聊天室">聊天室</span>
 
 聊天室模型特点：
 
@@ -1884,15 +1954,15 @@ NIMClient.getService(TeamService.class).searchTeam(teamId)
 - 断开聊天室连接后，服务器不会再推送该聊天室的消息给此用户。
 - 聊天室成员分固定成员（固定成员有四种类型，分别是创建者,管理员,普通用户,受限用户。禁言用户和黑名单用户都属于受限用户。）和游客两种类型。
 
-### <span id="进入聊天室">进入聊天室</span> 
+### <span id="进入聊天室">进入聊天室</span>
 
-聊天室必填字段roomId。
+进入聊天室必填字段 roomId 。
 
-聊天室可选字段：
+进入聊天室可选字段：
 
-1\. 扩展字段extension，进入聊天室后展示的扩展字段，长度限制4K
+1\. 用户扩展字段 extension ，进入聊天室后展示用户信息的扩展字段，长度限制4K 。设置后在获取聊天室成员信息 `ChatRoomMember` 时可以查询到此扩展字段；此外，在收到聊天室消息时，可以从 `ChatRoomMessage#ChatRoomMessageExtension#getSenderExtension` 中获取消息发送者的用户信息扩展字段。
 
-2\. 通知的扩展字段notifyExtension，进入聊天室通知开发者扩展字段，长度限制1K
+2\. 通知的扩展字段 notifyExtension ，进入聊天室通知消息扩展字段，长度限制1K（进入聊天室后，聊天室成员都会收到一条通知消息）。设置后，在收到聊天室通知消息时的 `ChatRoomNotificationAttachment` 中可以查询到此扩展字段。
 
 ```java
 EnterChatRoomData data = new EnterChatRoomData(roomId);
@@ -1900,17 +1970,41 @@ EnterChatRoomData data = new EnterChatRoomData(roomId);
                 .setCallback(new RequestCallback<EnterChatRoomResultData>() {...});
 ```
 
+如果聊天室不存在，那么上述接口将回调 onFailed ，错误码404（即 roomId 不存在）
 > 注意：当进入聊天室后，再发生掉线问题时，SDK会自动进行重连，无需开发者再次调用进入聊天室接口。
+> 注意：进入聊天室前，必须先成功登录 IM，否则会登录失败，并上报错误码1000。
 
-### <span id="离开聊天室">离开聊天室</span> 
+SDK 有聊天室断线重连机制，会在网络恢复后做重连并自动登录，如果自动登录失败，则会有在线状态变更通知，见[监听聊天室在线状态](#监听聊天室在线状态)。
+如果为在线状态变更为 UNLOGIN 则表示自动登录失败（例如账号被群主拉黑，聊天室状态异常等），那么在状态变更观察者回调中可以调用 SDK 接口获取服务器返回的失败原因，并在界面上做相应的处理（比如退出聊天室）。
+
+进入聊天室错误码主要有：
+414:参数错误
+404:聊天室不存在
+403:无权限
+500:服务器内部错误 
+13001:IM主连接状态异常 
+13002:聊天室状态异常 
+13003:黑名单用户禁止进入聊天室 
+
+```java
+/**
+* 获取进入聊天室失败的错误码
+* 如果是手动登录，在 enterChatRoom 的回调函数中已有错误码。
+* 如果是断网重连，在自动登录失败时，即监听到在线状态变更为 UNLOGIN 时，可以采用此接口查看具体自动登录失败的原因。
+*/
+int errorCode = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId));
+```
+
+### <span id="离开聊天室">离开聊天室</span>
 
 离开聊天室，会断开聊天室对应的链接，并不再收到该聊天室的任何消息。如果用户要离开聊天室，可以手动调用离开聊天室接口，该接口没有回调。
 
 ```java
 NIMClient.getService(ChatRoomService.class).exitChatRoom(roomId);
 ```
+如果聊天室被解散，会收到被踢出的通知。
 
-### <span id="发送消息">发送消息</span> 
+### <span id="发送消息">发送消息</span>
 
 先通过 `ChatRoomMessageBuilder` 提供的接口创建消息对象，然后调用 `ChatRoomService` 的 `sendMessage` 接口发送出去即可。
 
@@ -1924,10 +2018,11 @@ ChatRoomMessage message = ChatRoomMessageBuilder.createChatRoomTextMessage(
 	sessionId, // 聊天室id
 	content // 文本内容
 	);
-	
+
 // 发送消息。如果需要关心发送结果，可设置回调函数。发送完成时，会收到回调。如果失败，会有具体的错误码。
 NIMClient.getService(ChatRoomService.class).sendMessage(message);
 ```
+其它类型的消息发送方式与会话消息类似，请参考[发送消息](#发送消息) 一节。
 
 ### <span id="接收消息">接收消息</span>
 
@@ -1940,16 +2035,16 @@ Observer<List<ChatRoomMessage>> incomingChatRoomMsg = new Observer<List<ChatRoom
             // 处理新收到的消息
         }
     };
-    
+
 NIMClient.getService(ChatRoomServiceObserver.class)
 	.observeReceiveMessage(incomingChatRoomMsg, register);
 ```
 
 ### <span id="聊天室通知消息">聊天室通知消息</span>
 
-聊天室通知消息是聊天室消息的一种。即聊天室通知消息是 `ChatRoomMessage`， 其中附件类型为 `ChatRoomNotificationAttachment` ，附件类型中的 type 字段来标识聊天室通知消息的类型。目前支持的类型见`NotificationType` 。
+聊天室通知消息是聊天室消息的一种（消息类型为 Notification）。即聊天室消息为 `ChatRoomMessage`， 其中附件类型为 `ChatRoomNotificationAttachment` ，附件类型中的 type 字段来标识聊天室通知消息的类型。目前支持的类型见 `NotificationType` 。
 
-### <span id="获取历史消息">获取历史消息</span> 
+### <span id="获取历史消息">获取历史消息</span>
 
 聊天室支持获取云端消息记录的功能。以 startTime（单位毫秒） 为时间戳，拉取 limit 条消息。拉取到的消息中也包含成员操作的通知消息。
 
@@ -1973,20 +2068,20 @@ NIMClient.getService(ChatRoomService.class).pullMessageHistory(roomId, 0, 10)
 });
 ```
 
-### <span id="获取聊天室基本信息">获取聊天室基本信息</span> 
+### <span id="获取聊天室基本信息">获取聊天室基本信息</span>
 
-此接口可以向服务器获取聊天室信息。SDK 不提供聊天室信息的缓存，开发者可根据需要自己做缓存。
+此接口可以向服务器获取聊天室信息。SDK 不提供聊天室信息的缓存，开发者可根据需要自己做缓存。聊天室基本信息的扩展字段需要在服务器端设置，客户端 SDK 只提供查询。
 
 ```java
 NIMClient.getService(ChatRoomService.class)
 	.fetchRoomInfo(roomId).setCallback(new RequestCallback<ChatRoomInfo>() { ... });
 ```
 
-### <span id="获取聊天室成员">获取聊天室成员</span> 
+### <span id="获取聊天室成员">获取聊天室成员</span>
 
 #### <span id="获取成员信息">获取成员信息</span>
 
-该接口可以获取固定成员信息、仅在线的固定成员信息及游客信息。
+该接口可以获取固定成员信息、仅在线的固定成员信息及游客信息 `ChatRoomMember`，其中的扩展字段由该用户进入聊天室时填写。
 
 固定成员有四种类型，分别是创建者,管理员,普通用户,受限用户。禁言用户和黑名单用户都属于受限用户。
 
@@ -2018,7 +2113,7 @@ NIMClient.getService(ChatRoomService.class)
 ```java
 List<String> accounts = new ArrayList<>();
 accounts.add(account);
-        
+
 /**
  * 根据用户id获取聊天室成员信息
  *
@@ -2039,16 +2134,20 @@ NIMClient.getService(ChatRoomService.class)
 NIMClient.getService(ChatRoomServiceObserver.class)
 	.observeOnlineStatus(onlineStatus, register);
 
-Observer<ChatRoomStatusChangeData> onlineStatus 
+Observer<ChatRoomStatusChangeData> onlineStatus
 	= new Observer<ChatRoomStatusChangeData>() {
         @Override
-        public void onEvent(ChatRoomStatusChangeData chatRoomStatusChangeData) {
+        public void onEvent(ChatRoomStatusChangeData data) {
+            if (data.status == StatusCode.UNLOGIN) {      
+                int errorCode = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId));
+                ...
+            } 
             ...
         }
     };
 ```
 
-### <span id="成员操作">成员操作</span> 
+### <span id="成员操作">成员操作</span>
 
 #### <span id="拉黑">拉黑</span>
 
@@ -2148,7 +2247,7 @@ NIMClient.getService(ChatRoomService.class)
 
 ### <span id="监听被踢出聊天室">监听被踢出聊天室</span>
 
-当用户被主播或者管理员踢出聊天室，会收到通知。注意：收到被踢出通知后，不需要再调用退出聊天室接口，SDK 会负责聊天室的退出工作。可以在踢出通知中做相关缓存的清理工作和界面操作。开发者可以通过加入以下代码监听是否被踢出聊天室:
+当用户被主播或者管理员踢出聊天室、聊天室被关闭（被解散），会收到通知。注意：收到被踢出通知后，不需要再调用退出聊天室接口，SDK 会负责聊天室的退出工作。可以在踢出通知中做相关缓存的清理工作和界面操作。开发者可以通过加入以下代码监听是否被踢出聊天室:
 
 ```java
 NIMClient.getService(ChatRoomServiceObserver.class)
@@ -2156,7 +2255,8 @@ NIMClient.getService(ChatRoomServiceObserver.class)
 
 Observer<ChatRoomKickOutEvent> kickOutObserver = new Observer<ChatRoomKickOutEvent>() {
         @Override
-        public void onEvent(ChatRoomKickOutEvent chatRoomKickOutEvent) { 
+        public void onEvent(ChatRoomKickOutEvent chatRoomKickOutEvent) {
+            // 提示被踢出的原因（聊天室已解散、被管理员踢出、被其他端踢出等）
             // 清空缓存数据
         }
     };
@@ -2425,7 +2525,7 @@ public class CustomNotificationReceiver extends BroadcastReceiver {
 
 	@Override
 	public void onReceive(Context context, Intent intent) {
-		String action = context.getPackageName() + NimIntent.ACTION_RECEIVE_CUSTOM_NOTIFICATION;        
+		String action = context.getPackageName() + NimIntent.ACTION_RECEIVE_CUSTOM_NOTIFICATION;
 		if (action.equals(intent.getAction())) {
 			// 从 intent 中取出自定义通知， intent 中只包含了一个 CustomNotification 对象
 			CustomNotification notification = (CustomNotification)
@@ -2751,7 +2851,7 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 
 主叫方可以发起语音或者视频通话，通话类型见 `AVChatTypeEnum`。
 
-发起的是视频通话，需要传入 `VideoChatParam`，其中包含视频采集用的 SurfaceView（一般只需要在界面布局里放置一个 1×1 的 SurfaceView）及视频旋转角度，如果发起的是语音通话，该参数填 null。 
+发起的是视频通话，需要传入 `VideoChatParam`，其中包含视频采集用的 SurfaceView（一般只需要在界面布局里放置一个 1×1 的 SurfaceView）及视频旋转角度，如果发起的是语音通话，该参数填 null。
 
 可选参数 `AVChatNotifyOption` 包含iOS的通知配置以及可自定义的扩展消息。
 
@@ -3006,7 +3106,7 @@ AVChatManager.getInstance().hangUp(new AVChatCallback<Void>() {}
 ```java
 public class AVChatActivity implements AVChatStateObserver {
 	AVChatManager.getInstance().observeAVChatState(this, register);
-} 
+}
 ```
 
 #### 当前音视频服务器连接回调
@@ -3523,7 +3623,7 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 提供给第三方自定义的全局的通知类型，其对应的数据结构为 `CustomNotification`。只有在线和离线，没有漫游，没有通知栏提醒（第三方自行实现）。
 
-自定义通知和自定义消息的不同之处在于，自定义消息归属于会话中的消息体系内，由 SDK 存储在消息数据库中，与网易云信的其他内建消息类型一同展现给用户。而自定义通知主要用于第三方的一些事件状态通知，网易云信不存储，也不解释这些通知，网易云信仅仅负责替第三方传递和通知这些事件，起到透传的作用。
+自定义通知和自定义消息的不同之处在于，自定义消息归属于会话中的消息体系内，由 SDK 存储在消息数据库中，与网易云信的其他内建消息类型一同展现给用户。而自定义通知主要用于第三方的一些事件状态通知，网易云信不存储，也不解析这些通知，网易云信仅仅负责替第三方传递和通知这些事件，起到透传的作用。
 
 - 使用场景
 
@@ -3531,3 +3631,4 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 ## <span id="API 文档">API 文档</span>
 * [在线文档](http://dev.netease.im/doc/android/index.html "target=_blank")
+
