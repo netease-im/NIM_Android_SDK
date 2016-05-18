@@ -15,9 +15,11 @@
 
 ## <span id="开发准备">开发准备</span>
 
-首先从[网易云信官网](http://netease.im/im-sdk-demo   "target=_blank")下载 Android SDK。开发者可以根据实际需求，配置类库。
+首先从[网易云信官网](http://netease.im/im-sdk-demo "target=_blank")下载 Android SDK。开发者可以根据实际需求，配置类库。
 
-注：SDK 兼容所有版本，Demo 兼容 Android 2.3+。### <span id="类库配置">类库配置</span>
+注：SDK 兼容所有版本，Demo 兼容 Android 2.3+。
+
+### <span id="类库配置">类库配置</span>
 
  SDK 包的libs文件夹中，包含了网易云信的 jar 文件，各 jni 库文件夹以及 SDK 依赖的第三方库，列表如下：
  
@@ -54,6 +56,10 @@ libs
 如果需要音视频功能，so 库需要加上 libnrtc\*.so，还需加上 nrtc-sdk.jar；
 如果需要实时会话（白板）服务，so 库需要加上librts\*.so；
 如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 
+
+> 特别说明：目前 Android 系统存在 armeabi armeabi-v7a x86 mips arm64-v8a x86_64 mips64 等多种Native库支持。
+云信 SDK 目前只提供其中常用的 armeabi-v7a armeabi x86 三种32位库文件，但是可以以32位兼容模式运行在64位设备上，不会存在功能上的异常现象。当云信 SDK 运行在64位设备上时，应确保没有
+arm64-v8a x86_64 库存在，否则 Android 系统将使用64位模式启动程序，而云信 SDK 目前不支持此种模式。详细说明见[云信Android SDK 64位库兼容问题说明](http://bbs.netease.im/read-tid-267 "target=_blank")
 
 如果你的 APP 的 libs 里面只包含 armeabi 一个文件夹，为了保证在 arm-v7a 上有较好的性能，以及兼容各个平台，可将各目录下的 so 文件名改为原文件名加上"_{arch_of_cpu}"，然后统一放到 armeabi 目录下，SDK 也会加载到正确版本的so库。改名后的目录结构如下：
 
@@ -1990,7 +1996,7 @@ SDK 有聊天室断线重连机制，会在网络恢复后做重连并自动登�
 /**
 * 获取进入聊天室失败的错误码
 * 如果是手动登录，在 enterChatRoom 的回调函数中已有错误码。
-* 如果是断网重连，在自动登录失败时，即监听到在线状态变更为 UNLOGIN 时，可以采用此接口查看具体自动登录失败的原因。
+* 如果是断网重连，在自动登录失败时，即监听到在线状态变更为 UNLOGIN 时，可以采用此接口查看具体自动登录失败的原因，如果是13001，13002，13003，403，404，414错误，此时应该调用离开聊天室接口。
 */
 int errorCode = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId));
 ```
@@ -2140,7 +2146,7 @@ Observer<ChatRoomStatusChangeData> onlineStatus
         public void onEvent(ChatRoomStatusChangeData data) {
             if (data.status == StatusCode.UNLOGIN) {      
                 int errorCode = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId));
-                ...
+                // 如果遇到错误码13001，13002，13003，403，404，414，表示无法进入聊天室，此时应该调用离开聊天室接口。
             } 
             ...
         }
@@ -2819,7 +2825,7 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 
 ## <span id="语音视频通话">语音视频通话</span>
 
-网易云信提供基于网络的点对点的语音、视频聊天功能。支持通话中音视频设备的控制，并支持音视频切换。
+网易云信提供基于网络的语音、视频聊天功能。支持通话中音视频设备的控制，并支持音视频切换。
 
 ### <span id="语音视频通话配置">语音视频通话配置</span>
 
@@ -2845,39 +2851,29 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 </receiver>
 ```
 
-### <span id="语音视频通话流程">语音视频通话流程</span>
+### <span id="双人语音视频通话流程">双人语音视频通话流程</span>
 
 #### 发起通话（主叫方）
 
-主叫方可以发起语音或者视频通话，通话类型见 `AVChatTypeEnum`。
+会话类型参数 `AVChatTypeEnum` 主要分为语音通话和视频通话。
 
-发起的是视频通话，需要传入 `VideoChatParam`，其中包含视频采集用的 SurfaceView（一般只需要在界面布局里放置一个 1×1 的 SurfaceView）及视频旋转角度，如果发起的是语音通话，该参数填 null。
+会话可选参数 `AVChatOptionalParam` 包含了视频质量控制、服务器录制以及一些其它可选参数，可以根据自己的需求选择性设置。
 
-可选参数 `AVChatNotifyOption` 包含iOS的通知配置以及可自定义的扩展消息。
+会话通知参数 `AVChatNotifyOption` 包含iOS的通知配置以及可自定义的扩展消息。
 
 ```java
-AVChatManager.getInstance().call(account, callType, videoParam, notifyOption，new AVChatCallback<AVChatData>() { ... });
+AVChatManager.getInstance().call(account, callType, param, notifyOption，new AVChatCallback<AVChatData>() { ... });
 ```
 
 #### 监听来电（被叫方）
 
-一般是在 APP 启动时注册来电监听，例如在 Application 的 onCreate 里添加，这里可以进行铃声相关的配置，见 `AVChatRingerConfig` 类，当监听到来电时，会返回来电信息 `AVChatData`，其中包含呼叫方式（音频或者视频）、来电帐号。
+一般是在 APP 启动时注册来电监听，例如在 Application 的 onCreate 里添加。当监听到来电时，会返回来电信息 `AVChatData`，其中包含呼叫方式（音频或者视频）、来电帐号。
 
 ```java
 private void enableAVChat() {
-    setupAVChat();
     registerAVChatIncomingCallObserver(true);
 }
 
-private void setupAVChat() {
-    AVChatRingerConfig config = new AVChatRingerConfig();
-    config.res_connecting = R.raw.avchat_connecting;
-    config.res_no_response = R.raw.avchat_no_response;
-    config.res_peer_busy = R.raw.avchat_peer_busy;
-    config.res_peer_reject = R.raw.avchat_peer_reject;
-    config.res_ring = R.raw.avchat_ring;
-    AVChatManager.getInstance().setRingerConfig(config); // 铃声配置
-}
 
 private void registerAVChatIncomingCallObserver(boolean register) {
     AVChatManager.getInstance().observeIncomingCall(new Observer<AVChatData>() {
@@ -2921,7 +2917,7 @@ Observer<AVChatOnlineAckEvent> onlineAckObserver = new Observer<AVChatOnlineAckE
 
 #### 同意接听（被叫方）
 
-当监听到来电后启动通话界面，被叫方可以选择接听或者拒绝。当选择接听时，如果是视频通话，那么同样需要传入 `VideoChatParam`，SDK 会自动开启音视频设备，建立通话连接。
+当监听到来电后启动通话界面，被叫方可以选择接听或者拒绝。当选择接听时，可以传入相关的可选参数 `AVChatOptionalParam`，SDK 会自动开启音视频设备，建立通话连接。
 
 在某些特殊情况下，有可能音视频启动失败，此时会回调 onFailed ，错误码-1表示初始化引擎失败。
 
@@ -2979,25 +2975,13 @@ Observer<AVChatCommonEvent> callHangupObserver = new Observer<AVChatCommonEvent>
     };
 ```
 
-#### <span id="发送通话控制信息">发送通话控制信息 </span>
-
-双方通话建立之后，就可以相互发送通话控制信息了。
-
-```java
-// 开启本地视频
-AVChatManager.getInstance().toggleLocalVideo(true, null);
-
-// 关闭本地视频
-AVChatManager.getInstance().toggleLocalVideo(false, null);
-```
-
 #### <span id="请求音视频切换">请求音视频切换</span>
 
 双方通话建立之后，就可以发起音视频切换请求。发送音频到视频的切换请求，对方需要同意才能切换成功；发送视频到音频的切换请求，对方默认同意，自动切换。
 
 ```java
-// 请求音频切换到视频，需要传入VideoChatParam
-AVChatManager.getInstance().requestSwitchToVideo(videoParam, new AVChatCallback<Void>() { ...});
+// 请求音频切换到视频
+AVChatManager.getInstance().requestSwitchToVideo( new AVChatCallback<Void>() { ...});
 
 // 请求视频切换到音频
 AVChatManager.getInstance().requestSwitchToAudio(new AVChatCallback<Void>() { ... });
@@ -3009,10 +2993,10 @@ AVChatManager.getInstance().requestSwitchToAudio(new AVChatCallback<Void>() { ..
 
 ```java
 // 同意音频切换到视频
-AVChatManager.getInstance().ackSwitchToVideo(true, videoParam, new AVChatCallback<Void>() { ... });
+AVChatManager.getInstance().ackSwitchToVideo(true, new AVChatCallback<Void>() { ... });
 
 // 拒绝音频切换到视频
-AVChatManager.getInstance().ackSwitchToVideo(false, videoParam, null);
+AVChatManager.getInstance().ackSwitchToVideo(false, null);
 ```
 
 #### 监听通话控制通知
@@ -3099,7 +3083,45 @@ Observer<Integer> autoHangUpForLocalPhoneObserver = new Observer<Integer>() {
 AVChatManager.getInstance().hangUp(new AVChatCallback<Void>() {}
 ```
 
-### <span id="当前通话信息">当前通话信息</span>
+
+### <span id="多人语音视频通话流程">多人语音视频通话流程</span>
+
+#### 创建多人会话房间
+
+通过一个房间名 `channelName` 来创建多人会话频道。
+
+可以传入一个扩展字段 `extraMessage`。 后续加入房间的用户会收到这个扩展字段。
+
+```java
+AVChatManager.getInstance().createChannelByName(channelName, extraMessage, new AVChatCallback<AVChatChannelInfo>() {}
+```
+
+
+#### 加入多人会话房间
+
+通过一个房间名 `channelName` 来加入一个已经创建好的多人会话频道。
+
+加入房间时需要指定自己的会话类型 `AVChatTypeEnum`。 主要为音频通话和视频通话两种。
+
+会话可选参数 `AVChatOptionalParam` 包含了视频质量控制、服务器录制以及一些其它可选参数，可以根据自己的需求选择性设置。
+
+
+```java
+AVChatManager.getInstance().joinChannelByName(channelName, callType, param, new AVChatCallback<AVChatData>() {}
+```
+
+#### 离开多人会话房间
+
+离开一个已经加入的多人会话房间。
+
+
+```java
+AVChatManager.getInstance().leaveChannel(new AVChatCallback<Void>() {}
+```
+
+
+
+### <span id="通话状态监听">通话状态监听</span>
 
 实现 `AVChatStateObserver` 监听通话过程中状态变化。被叫方同意来电请求后，SDK 自动进行音视频服务器连接，并返回相应信息供上层应用使用。
 
@@ -3111,11 +3133,14 @@ public class AVChatActivity implements AVChatStateObserver {
 
 #### 当前音视频服务器连接回调
 
-首先返回服务器连接是否成功的回调 `onConnectedServer`，并通过返回的 result code 做相应的处理。
+首先返回服务器连接是否成功的回调 `onJoinedChannel`，并通过返回的 result code 做相应的处理。
+
+参数 `code` 返回加入频道是否成功。
+参数 `filePath` `fileName`  在开启服务器录制的情况下返回录制文件的保存路径。
 
 ```java
 @Override
-public void onConnectedServer(int res) {
+public void onJoinedChannel(int code, String filePath, String fileName) {
    handleWithConnectServerResult(res);
 }
 
@@ -3132,11 +3157,11 @@ protected void handleWithConnectServerResult(int auth_result) {}
 
 #### 加入当前音视频频道用户帐号回调
 
-音视频服务器连接成功后，会回调 `onUserJoin`，可以获取当前通话的用户帐号。
+其他用户音视频服务器连接成功后，会回调 `onUserJoined`，可以获取当前通话的用户帐号。
 
 ```java
 @Override
-public void onUserJoin(String account) {}
+public void onUserJoined(String account) {}
 ```
 
 #### 当前用户离开频道回调
@@ -3170,12 +3195,12 @@ public void onDisconnectServer() {}
 
 #### 当前通话网络状况回调
 
-通话过程中网络状态发生变化，会回调 `onNetworkStatusChange`。
+通话过程中网络状态发生变化，会回调 `onNetworkQuality`。
 
 ```java
 // @param value 0~3 ,the less the better; 0 : best; 3 : worst
 @Override
-public void onNetworkStatusChange(int value) {}
+public void onNetworkQuality(String account, int value) {}
 ```
 
 #### 音视频连接成功建立回调
@@ -3195,45 +3220,120 @@ public void onCallEstablished() {
 }
 ```
 
+#### 音视频设备状态通知
+
+音视频设备状态发生改变时，会回调 `onDeviceEvent`。
+
+```java
+@Override
+public void onDeviceEvent(String account, int code, String desc) {}
+
+```
+
 #### 打开音视频设备出错回调
 
-音视频设备打开错误，会回调 `onOpenDeviceError`。
+用户执行截图后会回调 `onTakeSnapshotResult`。
 
 ```java
-/**
-* 1：音频采集错误
-* 2：音频播放错误
-* 4：视频采集错误
-* 8：视频渲染错误
-*/
 @Override
-public void onOpenDeviceError(int code) {}
+public void onTakeSnapshotResult(String account, boolean success, String file) {}
 
 ```
 
-#### 本地及远程摄像头图像获取
+#### 本地网络类型发生改变回调
 
-发起视频请求时，需要传递采集点 SurfaceView 给 SDK。SDK 会自动采集图像。界面需要显示图像时，通过用户帐号获取采集好的图像 SurfaceView。
+本地客户端网络类型发生改变时回调，会通知当前网络类型和前一次网络类型。
 
 ```java
-AVChatManager.getInstance().getSurfaceRender(account);
+@Override
+public void onConnectionTypeChanged(int current, int old) {}
+
 ```
+
+#### 本地音视频录制结束回调
+
+当本地录制音视频发送数据结束时回调，会通知录制文件路径以及结束原因。
+
+```java
+@Override
+public void onLocalRecordEnd(String[] files, int event) {}
+
+```
+
+
+#### 用户第一帧画面通知
+
+当用户第一帧视频画面绘制前通知。
+
+```java
+@Override
+public void onFirstVideoFrameAvailable(String account) {}
+
+```
+
+
+#### 用户视频帧率汇报
+
+实时汇报用户的视频绘制帧率。
+
+```java
+@Override
+public void onVideoFpsReported(String account, int fps) {}
+
+```
+
+
 
 ### <span id="通话中的设备控制">通话中的设备控制</span>
 
 通话进行中，可以进行设备静音，扬声器，摄像头切换，开关摄像头和切换通话模式的设置。
 
-#### 设置静音
+
+#### 本地及远程用户画布获取
+
+可以通过用户帐号获取用户的视频画面画布。
+
+获取自己视频画面画布需要在 `onCallEstablished` 回调后进行。
+
+获取远端视频画面画布需要在 `onUserJoined` 回调后进行。
 
 ```java
-if(!AVChatManager.getInstance().isMute()) { // isMute是否处于静音状态
-	// 关闭音频
-	AVChatManager.getInstance().setMute(true);
-} else {
-	// 打开音频
-	AVChatManager.getInstance().setMute(false);
-}
+AVChatManager.getInstance().getSurfaceRender(account);
 ```
+
+
+#### 设置本地语音流静音
+
+将设置本地发送语音是否静音。**注意：不影响本地语音数据发送。**
+
+```java
+AVChatManager.getInstance().muteLocalAudio(true);
+```
+
+#### 设置远端用户语音流静音
+
+将设置是否播放其他用户的语音数据。**注意：不影响远端语音数据接收。**
+
+```java
+AVChatManager.getInstance().muteRemoteAudio(account, true);
+```
+
+#### 设置本地视频流静音
+
+设置本地视频数据是否发送。**注意：不影响本地视频数据采集绘制。**
+
+```java
+AVChatManager.getInstance().muteLocalVideo(true);
+```
+
+#### 设置远端用户视频流静音
+
+将设置是否绘制远端用户的视频数据。**注意：不影响远端视频数据接收。**
+
+```java
+AVChatManager.getInstance().muteRemoteVideo(account, true);
+```
+
 
 #### 设置扬声器
 
@@ -3246,38 +3346,35 @@ AVChatManager.getInstance().setSpeaker(!AVChatManager.getInstance().speakerEnabl
 
 ```java
 // 切换摄像头（主要用于前置和后置摄像头切换）
-AVChatManager.getInstance().toggleCamera();
+AVChatManager.getInstance().switchCamera();
 ```
 
-#### 关闭/开启摄像头
-
-具体见[发送通话控制信息](#发送通话控制信息)
 
 #### 切换通话模式
 
 具体见[请求音视频切换](#请求音视频切换) 和 [音视频切换请求的回应](#音视频切换请求的回应)
 
-### <span id="通话中音视频录制">通话中音视频录制</span>
+
+#### 客户端本地录制发送的音视频数据
 
 通话进行中，可以录制自己发送的音频和视频数据, 文件将以MP4格式保存在客户端本地。程序卸载时录制的本地文件也会随程序一并删除。
-
-#### 开始录制
 
 客户端本地录制接口，通过返回值判断是否调用成功。仅录制发送的音频和视频文件，前后摄像头切换时录制文件可能存在多个。
 
 ```java
 // 开始录制
-AVChatManager.getInstance().startRecord(null);
+AVChatManager.getInstance().startLocalRecord(null);
 ```
-
-#### 结束录制
 
 客户端停止本地录制接口, 停止录制后将会通过回调函数返回结果。
 
 ```java
 // 停止录制
-AVChatManager.getInstance().stopRecord(null);
+AVChatManager.getInstance().stopLocalRecord(null);
+
 ```
+
+录制结束后会通过网络通话状态通知告知。
 
 ```java
 /**
@@ -3287,6 +3384,36 @@ AVChatManager.getInstance().stopRecord(null);
 */
 void onRecordEnd(String[] files, int event);
 ```
+
+
+#### 视频画面截图
+
+截取指定用户的视频画面， 截图结果将会通过 `onTakeSnapshotResult` 回调通知。
+
+```java
+AVChatManager.getInstance().takeSnapshot(account);
+```
+
+
+#### 多人模式观众角色设置
+
+是否打开观众角色, 设置观众角色后所有的语音和视频数据的采集和发送会关闭，仅允许接收和播放远端其他用户的数据。
+
+```java
+AVChatManager.getInstance().enableAudienceRole(true);
+```
+
+
+### <span id="网络通话其它接口">网络通话其它接口</span>
+
+#### 权限检查
+在Android 6.0 及以上系统中提供网络通话权限检查，需要保证所有权限获取后再进行网络通话。
+
+```java
+//返回缺失的权限
+AVChatManager.getInstance().checkPermission(context);
+```
+
 
 
 ## <span id="实时会话（白板）">实时会话（白板）</span>
@@ -3631,4 +3758,3 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 ## <span id="API 文档">API 文档</span>
 * [在线文档](http://dev.netease.im/doc/android/index.html "target=_blank")
-
