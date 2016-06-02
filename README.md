@@ -312,6 +312,12 @@ public class NimApplication extends Application {
 	    StatusBarNotificationConfig config = new StatusBarNotificationConfig();
 	    config.notificationEntrance = WelcomeActivity.class; // 点击通知栏跳转到该Activity
 	    config.notificationSmallIconId = R.drawable.ic_stat_notify_msg;
+	    // 呼吸灯配置
+        config.ledARGB = Color.GREEN;
+        config.ledOnMs = 1000;
+        config.ledOffMs = 1500;
+        // 通知铃声的uri字符串
+        config.notificationSound = "android.resource://com.netease.nim.demo/raw/msg";
 	    options.statusBarNotificationConfig = config;
 
 	    // 配置保存图片，文件，log 等数据的目录
@@ -679,9 +685,11 @@ NIMClient.getService(MsgService.class).sendMessage(msg, false);
 
 4\. enablePush ： 该消息是否进行推送（消息提醒）。默认为 true 。
 
-5\. enablePushNick : 该消息是否需要推送昵称（针对iOS客户端有效），如果为false，那么对方收到消息后，iOS端将不显示推送昵称。默认为 true 。
+5\. enablePushNick ： 该消息是否需要推送昵称（针对iOS客户端有效），如果为false，那么对方收到消息后，iOS端将不显示推送昵称。默认为 true 。
 
 6\. enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
+
+7\. enableRoute ：该消息是否支持路由，如果为 true，默认按照 app 的路由开关（如果有配置抄送地址则将抄送该消息）。默认为 true 。
 
 示例如下：
 
@@ -1230,6 +1238,7 @@ NIMClient.updateStatusBarNotificationConfig(config);
 * 通知栏弹出时的小图标（ticker），默认用App的图标。
 * 是否需要响铃（指定铃声）
 * 是否需要震动
+* 呼吸灯颜色、闪烁时长
 * 免打扰（是否开启免打扰、设置免打扰开始结束时间），在免打扰时间段的不进行通知栏提醒。
 * 点击通知栏要跳转到哪里（一般来说会跳转到主界面，然后根据对应消息的发送者，跳转到指定的P2P聊天界面）
 
@@ -1550,28 +1559,11 @@ player.stop();
 
 - 普通群
 
-开发手册中所提及的普通群都等同于Demo中的讨论组。普通群没有权限操作，适用于快速创建多人会话的场景。每个普通群只有一个管理员。管理员可以对普通群进行增减员操作，普通成员只能对普通群进行增员操作。在添加新成员的时候，并不需要经过对方同意。
+开发手册中所提及的普通群都等同于 Demo 中的讨论组。普通群没有权限操作，适用于快速创建多人会话的场景。每个普通群只有一个管理员。管理员可以对普通群进行增减员操作，普通成员只能对普通群进行增员操作。在添加新成员的时候，并不需要经过对方同意。
 
 - 高级群
 
-高级群在权限上有更多的限制，权限分为群主、管理员、以及群成员。在添加成员的时候需要对方接受邀请。
-
-- 群操作权限对比
-
-| 权限   | 普通群             | 高级群     |
-| :--| :---------------| :---------------|
-| 邀请成员 | 任何人 | 群主、管理员 |
-| 踢出成员 | 群主 | 群主、管理员(管理员之间无法互相踢) |
-| 解散群 | 群主 | 群主 |
-| 退群 | 任何人 |  管理员、普通成员 |
-| 处理入群申请 | / | 群主、管理员 |
-| 更改他人群昵称 | / | 群主、管理员 |
-| 更改群名称 | 任何人 | 群主、管理员 |
-| 更改群公告 | / | 群主、管理员 |
-| 更改群介绍 | / | 群主、管理员 |
-| 更新验证方式 | / | 群主、管理员 |
-| 添加(删除)管理员 | / | 群主 |
-| 移交群主 | / | 群主 |
+高级群在权限上有更多的限制，权限分为群主、管理员、以及群成员。2.4.0之前版本在添加成员的时候需要对方接受邀请；2.4.0版本之后，可以设定被邀请模式（是否需要对方同意）。高级群可以覆盖所有普通群的能力，建议开发者创建时选用高级群。
 
 ### <span id="群聊消息">群聊消息</span>
 
@@ -1785,7 +1777,11 @@ NIMClient.getService(TeamService.class)
 
 ### <span id="编辑群组资料">编辑群组资料</span>
 
-普通群所有人均可以修改群名，高级群仅拥有者和管理员可修改群名及其他群资料：
+每次仅修改群的一个属性，可修改的属性查看 `TeamFieldEnum` ，包括群名，群头像，群简介，群公告，群扩展字段，申请加入群组的验证模式，群邀请模式，群被邀请模式，群资料修改模式，群资料扩展字段修改模式。注意： 其中的 `Ext_Server` 群服务器扩展字段，仅限服务端修改。
+
+更新的value值，对应的数据类型，同样查看 `TeamFieldEnum` 。例如：群名 Name(ITeamService.TinfoTag.NAME, String.class)，表示 value 值的数据类型为 String。验证类型 VerifyType(ITeamService.TinfoTag.JOIN_MODE, VerifyTypeEnum.class)，表示 value 值的数据类型为VerifyTypeEnum。
+
+更新群头像请注意: 需要先调用 `NosService#upload` 方法，将头像图片成功上传到 nos。再将 nos 的 url 地址更新到群资料。
 
 ```java
 // 每次仅修改群的一个属性，可修改的属性包括：群名，介绍，公告，验证类型等。
@@ -1824,6 +1820,20 @@ NIMClient.getService(TeamService.class).updateMemberNick(teamId, account, nick).
 */
 NIMClient.getService(TeamService.class).updateMyTeamNick(teamId, nick).setCallback(new RequestCallback<Void>() {...});
 ```
+
+### <span id="修改自己的群成员扩展字段">修改自己的群成员扩展字段</span>
+
+```
+/**
+* 修改自己的群成员扩展字段（自定义属性）
+*
+* @param teamId    所在群组ID
+* @param extension 新的扩展字段（自定义属性）类型：Map<String,Object>
+* @return InvocationFuture 可以设置回调函数，监听操作结果
+*/
+NIMClient.getService(TeamService.class).updateMyMemberExtension(teamId, extMap).setCallback(new RequestCallback<Void>() {...});
+```
+修改后，群成员会收到群成员资料变更通知。
 
 ### <span id="监听群组资料变化">监听群组资料变化</span>
 
@@ -1907,6 +1917,23 @@ NIMClient.getService(TeamService.class)
 
 操作完成后，群内所有成员都会收到一条消息类型为 `notification` 的 `IMMessage`，附件类型为 `MemberChangeAttachment`。
 
+### <span id="群成员禁言">群成员禁言</span>
+
+群组支持管理员对普通成员的禁言、解除禁言操作。
+
+```java
+/**
+* 禁言、解除禁言
+*
+* @param teamId  群组ID
+* @param account 被禁言、被解除禁言的账号
+* @param mute    true表示禁言，false表示解除禁言
+* @return InvocationFuture 可以设置回调函数，监听操作结果
+*/
+NIMClient.getService(TeamService.class).muteTeamMember(teamId, account, mute).setCallback(new RequestCallback<Void>(){...});
+```
+操作完成后，群内所有成员都会收到一条消息类型为 `notification` 的 `IMMessage`，附件类型为 `MuteMemberAttachment`，通过附件可以知道具体哪个用户被禁言或者解除禁言。
+
 ### <span id="获取群组成员">获取群组成员</span>
 
 由于群组成员数据比较大，且除了进入群组成员列表界面外，其他地方均不需要群组成员列表的数据，因此 SDK 不会在登录时同步群组成员数据，而是按照按需获取的原则，当上层主动调用获取指定群的群组成员列表时，才判断是否需要同步。获取群组成员的示例代码如下：
@@ -1946,6 +1973,31 @@ NIMClient.getService(TeamService.class).queryTeamMember(teamId, account)
 ```java
 NIMClient.getService(TeamService.class).searchTeam(teamId)
 	.setCallback(new RequestCallback<Team>() { ... });
+```
+
+### <span id="群通知消息过滤">群通知消息过滤</span>
+
+群通知消息是指 IMMessage#getMsgType 为 MsgTypeEnum#notification 且 IMMessage#getSessionType 为 SessionTypeEnum#Team，表达群资料变更、群成员资料变更等信息。 SDK 在 2.4.0 版本后支持上层指定过滤器决定是否要将群通知消息存入 SDK 数据库（并通知上层收到该消息）。请注意，注册过滤器的时机，建议放在 Application 的 onCreate 中， SDK 初始化之后。
+
+示例：SDK 过滤群头像变更通知。
+
+```java
+// 在 Application启动时注册，保证漫游、离线消息也能够回调此过滤器进行过滤。注意，过滤器的实现不要有耗时操作。
+NIMClient.getService(TeamService.class).registerTeamNotificationFilter(new TeamNotificationFilter() {
+    @Override
+    public boolean shouldIgnore(IMMessage message) {
+        if (message.getAttachment() != null && message.getAttachment() instanceof UpdateTeamAttachment) {
+            UpdateTeamAttachment attachment = (UpdateTeamAttachment) message.getAttachment();
+            for (Map.Entry<TeamFieldEnum, Object> field : attachment.getUpdatedFields().entrySet()) {
+                if (field.getKey() == TeamFieldEnum.ICON) {
+                    return true; // 过滤
+                }
+            }
+        }
+
+        return false; // 不过滤
+    }
+});
 ```
 
 ## <span id="聊天室">聊天室</span>
@@ -2704,7 +2756,7 @@ boolean black = NIMClient.getService(FriendService.class).isInBlackList(account)
 
 ### <span id="消息提醒">消息提醒</span>
 
-网易云信支持对用户设置或关闭消息提醒，关闭后，收到该用户发来的消息时，不再进行通知栏消息提醒。个人用户的消息提醒设置可以漫游。
+网易云信支持对用户设置或关闭消息提醒（静音），关闭后，收到该用户发来的消息时，不再进行通知栏消息提醒。个人用户的消息提醒设置支持漫游。
 
 #### 设置/关闭消息提醒
 
@@ -2730,7 +2782,19 @@ boolean notice = NIMClient.getService(FriendService.class).isNeedMessageNotify(a
 ```java
 List<String> accounts = NIMClient.getService(FriendService.class).getMuteList();
 ```
+#### 监听消息提醒变更通知
 
+同一个账号在其他端登录时发生了消息提醒变更，会有下面回调通知：
+
+```java
+NIMClient.getService(FriendServiceObserve.class).observeMuteListChangedNotify(
+    new Observer<MuteListChangedNotify>() {
+        @Override
+        public void onEvent(MuteListChangedNotify notify) {
+            // notify.isMute() 是否被静音
+        }
+    }, register);
+```
 ## <span id="用户资料托管">用户资料托管</span>
 
 网易云信提供了用户资料托管( `NimUserInfo` )，第三方 APP 可以使用也可以自行实现，但必须实现 `UserInfo` 接口。
@@ -2832,17 +2896,6 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 使用音视频功能，需要在 `AndroidManifest.xml` 文件中配置接收器。
 
 ```xml
-<!-- 申明实时音视频来电通知的广播接收器，第三方APP集成时，
-    action中的com.netease.nim.demo请替换为自己的包名 -->
-<receiver
-    android:name="com.netease.nimlib.receiver.AVChatBroadcastReceiver"
-    android:enabled="true"
-    android:exported="false">
-    <intent-filter>
-        <action android:name="com.netease.nim.demo.ACTION.RECEIVE_AVCHAT_CALL_NOTIFICATION"/>
-    </intent-filter>
-</receiver>
-
 <!-- 申明本地电话状态（通话状态）的广播接收器，第三方APP集成时音视频模块时，如果需要网络通话与本地电话互斥，请加上此接收器 -->
 <receiver android:name="com.netease.nimlib.receiver.IncomingCallReceiver">
     <intent-filter>
@@ -3758,3 +3811,4 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 ## <span id="API 文档">API 文档</span>
 * [在线文档](http://dev.netease.im/doc/android/index.html "target=_blank")
+
