@@ -17,9 +17,9 @@
 
 首先从[网易云信官网](http://netease.im/im-sdk-demo "target=_blank")下载 Android SDK。开发者可以根据实际需求，配置类库。
 
-注：SDK 兼容所有版本，Demo 兼容 Android 2.3+。
+注：SDK 最低要求 Android 2.3。
 
-### <span id="类库配置">类库配置</span>
+### <span id="类库配置">类库配置（2.5以下版本）</span>
 
  SDK 包的libs文件夹中，包含了网易云信的 jar 文件，各 jni 库文件夹以及 SDK 依赖的第三方库，列表如下：
  
@@ -44,7 +44,7 @@ libs
 │   └── libnrtc_network.so
 │   └── librts_network.so
 ├── nim-sdk-1.0.0.jar
-├── nrtc-sdkjar（音视频需要）
+├── nrtc-sdk.jar（音视频需要）
 └── cosinesdk.jar (Android 后台保活需要)
 ```
 
@@ -83,12 +83,109 @@ libs
 │   └── libnrtc_network_x86.so
 │   ├── librts_network_x86.so
 ├── nim-sdk-1.0.0.jar
-├── nrtc-sdk-1.1.0.jar
+├── nrtc-sdk.jar
 └── cosinesdk.jar
 ```
 
 如果你使用的 IDE 是 Android Studio，要将 jni 库按照 IDEA 工程目录的结构，放置在对应的目录中（一般为 src/main/jniLibs）。或者在 build.gradle 中配置好 jniLibs 的 sourceSets（可参考 demo 的 build.gradle）。
-   
+
+### 类库配置（2.5及以上版本）
+
+网易云信 Android SDK v2.5及以上分为两种 SDK 包下载，第一种包含全部功能：IM + 聊天室 + 实时音视频 + 教学白板。第二种包含部分功能，包含：IM + 聊天室。
+
+ SDK 包的libs文件夹中，包含了网易云信的 jar 文件，各 jni 库文件夹以及 SDK 依赖的第三方库。
+ 
+第一种，包含全部功能的 SDK 包。如果需用云信 SDK 提供的所有功能，将这些文件拷贝到你的工程的 libs 目录下，即可完成配置。列表如下：
+
+```
+libs
+├── armeabi
+│   ├── libne_audio.so （高清语音录制功能必须）
+│   └── libcosine.so （Android 后台保活需要）
+│   ├── libnrtc_engine.so （音视频需要）
+│   └── libnrtc_network.so （音视频需要）
+│   └── librts_network.so （实时会话服务需要）
+├── armeabi-v7a
+│   ├── libne_audio.so
+│   └── libcosine.so
+│   ├── libnrtc_engine.so
+│   └── libnrtc_network.so
+│   └── librts_network.so
+├── x86
+│   ├── libne_audio.so
+│   └── libcosine.so
+│   ├── libnrtc_engine.so
+│   └── libnrtc_network.so
+│   └── librts_network.so
+├── nim-basesdk-2.5.0.jar （基础功能）
+├── nim-chatroom-2.5.0.jar （聊天室需要）
+├── nim-rts-2.5.0.jar （实时会话服务需要）
+├── nim-avchat-2.5.0.jar （音视频需要）
+├── nrtc-sdkjar（音视频需要）
+└── cosinesdk.jar (Android 后台保活需要)
+```
+
+第二种，只包含 IM 基础功能和聊天室功能的 SDK 包。如果只需要 IM 基础功能和聊天室功能，只需要将下面这些文件拷贝到你的工程的 libs 目录下，即可完成配置。列表如下：
+
+```
+libs
+├── armeabi
+│   ├── libne_audio.so （高清语音录制功能必须）
+│   └── libcosine.so （Android 后台保活需要）
+├── armeabi-v7a
+│   ├── libne_audio.so
+│   └── libcosine.so
+├── x86
+│   ├── libne_audio.so
+│   └── libcosine.so
+├── nim-basesdk-2.5.0.jar （基础功能）
+├── nim-chatroom-2.5.0.jar （聊天室需要）
+└── cosinesdk.jar (Android 后台保活需要)
+```
+
+以上文件列表中，jar文件版本号可能会不同，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
+
+> 注意：你可以根据自己的需要，进行jar包的选择。
+例如：
+如果不需要聊天室功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-2.5.0.jar。
+如果只需要 IM 基础功能和 音视频功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-2.5.0.jar，so 库需要加上 libnrtc\*.so，还需加上nim-avchat-2.5.0.jar 和 nrtc-sdk.jar；
+如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ，以及 assets 文件夹中的cosine文件夹( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 
+
+***其他配置及相关说明，请参考上一节***
+
+### <span id="通过Gradle集成SDK">通过Gradle集成SDK</span>
+
+网易云信 Android SDK 2.5.0以上支持通过 Gradle 集成 SDK。
+
+首先，在整个工程的 build.gradle 文件中，配置repositories，使用 jcenter 或者 maven ，二选一即可，如下：
+
+```
+allprojects {
+    repositories {
+        jcenter() // 或者 mavenCentral()
+    }
+}
+```
+
+第二步，在主工程的 build.gradle 文件中，添加 dependencies。根据自己项目的需求，添加不同的依赖即可。注意：版本号必须一致，这里以2.5.0版本为例：
+
+```
+dependencies {
+    compile fileTree(dir: 'libs', include: '*.jar')
+    // 添加依赖。注意，版本号必须一致。
+    // 基础功能 (必需)
+    compile 'com.netease.nimlib:basesdk:2.5.0' 
+    // 音视频需要
+    compile 'com.netease.nimlib:avchat:2.5.0'
+    // 聊天室需要
+    compile 'com.netease.nimlib:chatroom:2.5.0'
+    // 实时会话服务需要
+    compile 'com.netease.nimlib:rts:2.5.0'
+}
+```
+
+> 再次注意：依赖包的版本号必须一致。
+
 ### <span id="权限与组件">权限与组件</span>
 
 在 `AndroidManifest.xml` 中加入以下配置:
@@ -1175,6 +1272,22 @@ private Observer<List<MessageReceipt>> messageReceiptObserver = new Observer<Lis
     };
 ```
 
+### <span id="转发消息"> 转发消息 </span>
+
+网易云信支持消息转发功能，不支持通知消息和音视频消息的转发，其他消息类型均支持。
+
+首先，通过 `MessageBuilder` 创建一个待转发的消息，参数为想转发的消息，转发目标的聊天对象id， 转发目标的会话类型。然后，通过 `MsgService#sendMessage` 接口，将消息发送出去。
+
+```
+// 创建待转发消息
+IMMessage message = MessageBuilder.createForwardMessage(forwardMessage, sessionId, sessionTypeEnum);
+if (message == null) {
+	Toast.makeText(container.activity, "该类型不支持转发", Toast.LENGTH_SHORT).show();
+	return;
+}
+NIMClient.getService(MsgService.class).sendMessage(message, false);
+```
+
 ### <span id="清空本地所有消息记录">清空本地所有消息记录</span>
 
 网易云信支持清空本地数据库中的所有消息记录。在清空数据记录的同时，可选择是否要同时清空最近联系人列表数据库。若最近联系人列表也被清空，会触发MsgServiceObserve#observeRecentContactDeleted(Observer, boolean)通知
@@ -1185,6 +1298,36 @@ private Observer<List<MessageReceipt>> messageReceiptObserver = new Observer<Lis
 * @param clearRecent 若为true，将同时清空最近联系人列表数据
 */
 public void clearMsgDatabase(boolean clearRecent);
+```
+
+### <span id="消息过滤">消息过滤</span>
+
+支持单聊和群聊的通知类型消息过滤，支持音视频类型消息过滤。
+
+通知消息是指 IMMessage#getMsgType 为 MsgTypeEnum#notification。 SDK 在 2.4.0 版本后支持上层指定过滤器决定是否要将通知消息，音视频消息存入 SDK 数据库（并通知上层收到该消息）。请注意，注册过滤器的时机，建议放在 Application 的 onCreate 中， SDK 初始化之后。
+
+示例：SDK 过滤群头像变更通知和过滤音视频类型消息。
+
+```java
+// 在 Application启动时注册，保证漫游、离线消息也能够回调此过滤器进行过滤。注意，过滤器的实现不要有耗时操作。
+NIMClient.getService(MsgService.class).registerIMMessageFilter(new IMMessageFilter() {
+        @Override
+        public boolean shouldIgnore(IMMessage message) {
+            if (UserPreferences.getMsgIgnore() && message.getAttachment() != null) {
+                if (message.getAttachment() instanceof UpdateTeamAttachment) {
+                    UpdateTeamAttachment attachment = (UpdateTeamAttachment) message.getAttachment();
+                    for (Map.Entry<TeamFieldEnum, Object> field : attachment.getUpdatedFields().entrySet()) {
+                        if (field.getKey() == TeamFieldEnum.ICON) {
+                            return true; // 过滤
+                        }
+                    }
+                } else if (message.getAttachment() instanceof AVChatAttachment) {
+                    return true; // 过滤
+                }
+            }
+            return false; // 不过滤
+        }
+    });
 ```
 
 ## <span id="消息提醒">消息提醒</span>
@@ -1386,6 +1529,8 @@ SDK 还提供了按照关键字搜索聊天记录的功能，可以对指定的�
 	 .setCallback(new RequestCallbackWrapper<List<IMMessage>>(){ ... });
 ```
 
+此外，SDK 还提供了按照关键字全局搜索聊天记录的接口：MsgService#searchAllMessageHistory，用法与上述类似。目前暂不提供索引方式的全文检索功能，该全局搜索接口需要开发者评估大数据情况下的性能开销。
+
 - 删除消息记录：
 
 ```java
@@ -1422,6 +1567,23 @@ NIMClient.getService(MsgService.class).queryMessageListByUuidBlock(uuids);
 */
 NIMClient.getService(MsgService.class).queryMessageListByType(msgTypeEnum, anchor, limit);
 ```
+
+- 根据时间点搜索消息历史
+
+该接口查询方向以某个时间点为基准从后往前，返回最多limit条匹配key的记录。该接口目前仅搜索文本类型的消息，匹配规则为文本内容包含keyword，仅支持精确匹配，不支持模糊匹配和拼音匹配。 由于sdk并不存储用户数据，因此keyword不会匹配用户资料。如果调用者希望查询指定用户的说话记录，可提供fromAccounts参数。如果提供的fromAccounts参数不为空，那么凡是消息说话者在fromAccounts列表中的记录，也会被当做匹配结果，加入搜索结果中。
+
+```
+/**
+* @param keyword      文本消息的搜索关键字
+* @param fromAccounts 消息说话者帐号列表，如果消息说话在该列表中，那么无需匹配keyword，对应的消息记录会直接加入搜索结果集中。
+* @param time         查询范围时间点，比time小（从后往前查）
+* @param limit        搜索结果的条数限制
+* @return InvocationFuture
+*/
+NIMClient.getService(MsgService.class).searchAllMessageHistory(keyword, fromAccounts, time, limit)
+	.setCallback(new RequestCallbackWrapper<List<IMMessage>>(){ ... });
+```
+
 
 ### <span id="云端记录">云端记录</span>
 
@@ -1661,7 +1823,7 @@ NIMClient.getService(TeamService.class).dismissTeam(teamId)
 
 ### <span id="拉人入群">拉人入群</span>
 
-普通群所有人都可以拉人入群，高级群仅管理员和拥有者可以邀请人入群，接口均为：
+普通群所有人都可以拉人入群，SDK 2.4.0之前版本高级群仅管理员和拥有者可以邀请人入群， SDK 2.4.0及以后版本高级群在创建时可以设置群邀请模式，支持仅管理员或者所有人均可拉人入群。
 
 ```java
 NIMClient.getService(TeamService.class).addMembers(teamId, accounts)
@@ -1975,31 +2137,6 @@ NIMClient.getService(TeamService.class).searchTeam(teamId)
 	.setCallback(new RequestCallback<Team>() { ... });
 ```
 
-### <span id="群通知消息过滤">群通知消息过滤</span>
-
-群通知消息是指 IMMessage#getMsgType 为 MsgTypeEnum#notification 且 IMMessage#getSessionType 为 SessionTypeEnum#Team，表达群资料变更、群成员资料变更等信息。 SDK 在 2.4.0 版本后支持上层指定过滤器决定是否要将群通知消息存入 SDK 数据库（并通知上层收到该消息）。请注意，注册过滤器的时机，建议放在 Application 的 onCreate 中， SDK 初始化之后。
-
-示例：SDK 过滤群头像变更通知。
-
-```java
-// 在 Application启动时注册，保证漫游、离线消息也能够回调此过滤器进行过滤。注意，过滤器的实现不要有耗时操作。
-NIMClient.getService(TeamService.class).registerTeamNotificationFilter(new TeamNotificationFilter() {
-    @Override
-    public boolean shouldIgnore(IMMessage message) {
-        if (message.getAttachment() != null && message.getAttachment() instanceof UpdateTeamAttachment) {
-            UpdateTeamAttachment attachment = (UpdateTeamAttachment) message.getAttachment();
-            for (Map.Entry<TeamFieldEnum, Object> field : attachment.getUpdatedFields().entrySet()) {
-                if (field.getKey() == TeamFieldEnum.ICON) {
-                    return true; // 过滤
-                }
-            }
-        }
-
-        return false; // 不过滤
-    }
-});
-```
-
 ## <span id="聊天室">聊天室</span>
 
 聊天室模型特点：
@@ -2246,6 +2383,26 @@ MemberOption option = new MemberOption(roomId, account);
 NIMClient.getService(ChatRoomService.class)
 	.markChatRoomMutedList(!chatRoomMember.isMuted(), option)
 	.setCallback(new RequestCallback<ChatRoomMember>() { ... });
+```
+
+#### <span id="临时禁言">临时禁言</span>
+
+- 设置临时禁言时, 会收到类型为 `ChatRoomMemberTempMuteAdd` 的聊天室通知消息。
+- 取消临时禁言时, 会收到类型为 `ChatRoomMemberTempMuteRemove` 的聊天室通知消息。
+
+聊天室支持设置临时禁言，禁言时长时间到了，自动取消禁言。设置临时禁言成功后的通知消息中，包含的时长是禁言剩余时长。若设置禁言时长为0，表示取消临时禁言。若第一次设置的禁言时长还没结束，又设置第二次临时禁言，以第二次设置的时间开始计时。
+
+```
+/**
+* 设置聊天室成员临时禁言
+* @param needNotify 是否需要发送广播通知，true：通知，false：不通知
+* @param duration  禁言时长,单位秒
+* @param memberOption 请求参数，包含聊天室id，帐号id以及可选的扩展字段
+* @return InvocationFuture 可以设置回调函数。如果出错，会有具体的错误代码。
+*/
+NIMClient.getService(ChatRoomService.class)
+	.markChatRoomTempMute(needNotify, Long.parseLong(content), new MemberOption(roomId, account))
+	.setCallback(new RequestCallback<Void>() {...});
 ```
 
 #### <span id="设置管理员">设置管理员</span>
@@ -2910,12 +3067,12 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 
 会话类型参数 `AVChatTypeEnum` 主要分为语音通话和视频通话。
 
-会话可选参数 `AVChatOptionalParam` 包含了视频质量控制、服务器录制以及一些其它可选参数，可以根据自己的需求选择性设置。
+会话可选参数 `AVChatOptionalConfig` 包含了视频质量控制、服务器录制以及一些其它可选参数，可以根据自己的需求在通话前选择性的设置。
 
 会话通知参数 `AVChatNotifyOption` 包含iOS的通知配置以及可自定义的扩展消息。
 
 ```java
-AVChatManager.getInstance().call(account, callType, param, notifyOption，new AVChatCallback<AVChatData>() { ... });
+AVChatManager.getInstance().call(account, callType, configs, notifyOption，new AVChatCallback<AVChatData>() { ... });
 ```
 
 #### 监听来电（被叫方）
@@ -2970,14 +3127,14 @@ Observer<AVChatOnlineAckEvent> onlineAckObserver = new Observer<AVChatOnlineAckE
 
 #### 同意接听（被叫方）
 
-当监听到来电后启动通话界面，被叫方可以选择接听或者拒绝。当选择接听时，可以传入相关的可选参数 `AVChatOptionalParam`，SDK 会自动开启音视频设备，建立通话连接。
+当监听到来电后启动通话界面，被叫方可以选择接听或者拒绝。当选择接听时，可以传入相关的可选参数 `AVChatOptionalConfig`，SDK 会自动开启音视频设备，建立通话连接。
 
 在某些特殊情况下，有可能音视频启动失败，此时会回调 onFailed ，错误码-1表示初始化引擎失败。
 
 注意：由于音视频引擎析构需要时间，请尽可能保证上一次通话挂断到本次电话接听时间间隔在2秒以上，否则有可能在接听时出现初始化引擎失败（code = -1），此问题后期会进行优化。
 
 ```java
-AVChatManager.getInstance().accept(videoParam, new AVChatCallback<Void>() { ... });
+AVChatManager.getInstance().accept(config, new AVChatCallback<Void>() { ... });
 ```
 
 #### 拒绝接听（被叫方）
@@ -3141,26 +3298,26 @@ AVChatManager.getInstance().hangUp(new AVChatCallback<Void>() {}
 
 #### 创建多人会话房间
 
-通过一个房间名 `channelName` 来创建多人会话频道。
+通过一个房间名 `roomName` 来创建多人会话频道。
 
 可以传入一个扩展字段 `extraMessage`。 后续加入房间的用户会收到这个扩展字段。
 
 ```java
-AVChatManager.getInstance().createChannelByName(channelName, extraMessage, new AVChatCallback<AVChatChannelInfo>() {}
+AVChatManager.getInstance().createRoom(roomName, extraMessage, new AVChatCallback<AVChatChannelInfo>() {}
 ```
 
 
 #### 加入多人会话房间
 
-通过一个房间名 `channelName` 来加入一个已经创建好的多人会话频道。
+通过一个房间名 `roomName` 来加入一个已经创建好的多人会话频道。
 
 加入房间时需要指定自己的会话类型 `AVChatTypeEnum`。 主要为音频通话和视频通话两种。
 
-会话可选参数 `AVChatOptionalParam` 包含了视频质量控制、服务器录制以及一些其它可选参数，可以根据自己的需求选择性设置。
+会话可选参数 `AVChatOptionalConfig` 包含了视频质量控制、服务器录制以及一些其它可选参数，可以根据自己的需求选择性设置。
 
 
 ```java
-AVChatManager.getInstance().joinChannelByName(channelName, callType, param, new AVChatCallback<AVChatData>() {}
+AVChatManager.getInstance().joinRoom(roomName, callType, config, new AVChatCallback<AVChatData>() {}
 ```
 
 #### 离开多人会话房间
@@ -3169,9 +3326,8 @@ AVChatManager.getInstance().joinChannelByName(channelName, callType, param, new 
 
 
 ```java
-AVChatManager.getInstance().leaveChannel(new AVChatCallback<Void>() {}
+AVChatManager.getInstance().leaveRoom(new AVChatCallback<Void>() {}
 ```
-
 
 
 ### <span id="通话状态监听">通话状态监听</span>
@@ -3295,11 +3451,11 @@ public void onTakeSnapshotResult(String account, boolean success, String file) {
 
 #### 本地网络类型发生改变回调
 
-本地客户端网络类型发生改变时回调，会通知当前网络类型和前一次网络类型。
+本地客户端网络类型发生改变时回调，会通知当前网络类型。
 
 ```java
 @Override
-public void onConnectionTypeChanged(int current, int old) {}
+public void onConnectionTypeChanged(int netType) {}
 
 ```
 
@@ -3341,6 +3497,25 @@ public void onVideoFpsReported(String account, int fps) {}
 
 通话进行中，可以进行设备静音，扬声器，摄像头切换，开关摄像头和切换通话模式的设置。
 
+#### 通话中实时设置参数
+
+在通话过程中, 可以实时设置部分参数。
+
+```java
+AVChatParameters params = new AVChatParameters();
+params.setBoolean(AVChatParameters.KEY_VIDEO_FPS_REPORTED, false);
+AVChatManager.getInstance().setParameters(params);
+```
+
+#### 通话中实时获取参数
+
+在通话过程中, 可以实时获取部分参数。
+
+```java
+AVChatParameters params = new AVChatParameters();
+params.requestKey(AVChatParameters.KEY_VIDEO_FPS_REPORTED);
+AVChatManager.getInstance().getParameters(params);
+```
 
 #### 本地及远程用户画布获取
 
