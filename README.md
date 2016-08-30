@@ -7,8 +7,9 @@
 - 网络连接管理
 - 登录认证服务
 - 消息传输服务
-- 群组管理/聊天室/会话服务
 - 消息存储服务
+- 消息检索服务
+- 群组管理/聊天室/会话服务
 - 用户资料、好友关系托管服务
 - 实时语音视频通话
 - 实时会话（白板）服务
@@ -17,7 +18,7 @@
 
 首先从[网易云信官网](http://netease.im/im-sdk-demo "target=_blank")下载 Android SDK。开发者可以根据实际需求，配置类库。
 
-注：SDK 最低要求 Android 2.3。
+注：SDK 最低要求 Android 2.3, 其中网络音视频通话和白板最低要求 Android 4.0。
 
 ### <span id="类库配置">类库配置（2.5以下版本）</span>
 
@@ -117,10 +118,11 @@ libs
 │   ├── libnrtc_engine.so
 │   └── libnrtc_network.so
 │   └── librts_network.so
-├── nim-basesdk-2.5.0.jar （基础功能）
-├── nim-chatroom-2.5.0.jar （聊天室需要）
-├── nim-rts-2.5.0.jar （实时会话服务需要）
-├── nim-avchat-2.5.0.jar （音视频需要）
+├── nim-basesdk-1.0.0.jar （基础功能）
+├── nim-chatroom-1.0.0.jar （聊天室需要）
+├── nim-rts-1.0.0.jar （实时会话服务需要）
+├── nim-avchat-1.0.0.jar （音视频需要）
+├── nim-lucene-1.0.0.jar （全文检索需要）
 ├── nrtc-sdkjar（音视频需要）
 └── cosinesdk.jar (Android 后台保活需要)
 ```
@@ -138,18 +140,18 @@ libs
 ├── x86
 │   ├── libne_audio.so
 │   └── libcosine.so
-├── nim-basesdk-2.5.0.jar （基础功能）
-├── nim-chatroom-2.5.0.jar （聊天室需要）
+├── nim-basesdk-1.0.0.jar （基础功能）
+├── nim-chatroom-1.0.0.jar （聊天室需要）
 └── cosinesdk.jar (Android 后台保活需要)
 ```
 
 以上文件列表中，jar文件版本号可能会不同，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
 
-> 注意：你可以根据自己的需要，进行jar包的选择。
-例如：
-如果不需要聊天室功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-2.5.0.jar。
-如果只需要 IM 基础功能和 音视频功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-2.5.0.jar，so 库需要加上 libnrtc\*.so，还需加上nim-avchat-2.5.0.jar 和 nrtc-sdk.jar；
+> 按需配置jar包：
+如果不需要聊天室功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-1.0.0.jar。
+如果只需要 IM 基础功能和 音视频功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-1.0.0.jar，so 库需要加上 libnrtc\*.so，还需加上nim-avchat-1.0.0.jar 和 nrtc-sdk.jar；
 如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ，以及 assets 文件夹中的cosine文件夹( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 
+如果不需要全文检索功能，可以去掉 nim-lucene-1.0.0.jar（该包有 1M+ 大小，如果没有用到消息全文检索功能，建议去掉）。
 
 ***其他配置及相关说明，请参考上一节***
 
@@ -174,13 +176,15 @@ dependencies {
     compile fileTree(dir: 'libs', include: '*.jar')
     // 添加依赖。注意，版本号必须一致。
     // 基础功能 (必需)
-    compile 'com.netease.nimlib:basesdk:2.5.0' 
+    compile 'com.netease.nimlib:basesdk:1.0.0'
     // 音视频需要
-    compile 'com.netease.nimlib:avchat:2.5.0'
+    compile 'com.netease.nimlib:avchat:1.0.0'
     // 聊天室需要
-    compile 'com.netease.nimlib:chatroom:2.5.0'
+    compile 'com.netease.nimlib:chatroom:1.0.0'
     // 实时会话服务需要
-    compile 'com.netease.nimlib:rts:2.5.0'
+    compile 'com.netease.nimlib:rts:1.0.0'
+    // 全文检索服务需要
+    compile 'com.netease.nimlib:lucene:1.0.0'
 }
 ```
 
@@ -216,6 +220,9 @@ dependencies {
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-feature android:name="android.hardware.camera" />
+    <uses-feature android:name="android.hardware.camera.autofocus" />
+    <uses-feature android:glEsVersion="0x00020000" android:required="true" />
 
     <!-- SDK 权限申明, 第三方 APP 接入时，请将 com.netease.nim.demo 替换为自己的包名 -->
     <!-- 和下面的 uses-permission 一起加入到你的 AndroidManifest 文件中。 -->
@@ -289,6 +296,11 @@ dependencies {
 -keep class com.netease.** {*;}
 #如果 netty 使用的官方版本，它中间用到了反射，因此需要 keep。如果使用的是我们提供的版本，则不需要 keep
 -keep class io.netty.** {*;}
+
+#如果你使用全文检索插件，需要加入
+-dontwarn org.apache.lucene.**
+-keep class org.apache.lucene.** {*;}
+
 ```
 
 ### <span id="总体接口介绍">总体接口介绍</span>
@@ -352,6 +364,7 @@ SDK 提供的接口主要按照业务进行分类，大致说明如下：
 - `AuthServiceObserve`: 用户状态观察者接口。
 - `MsgService`: 消息服务接口，用于发送消息，管理消息记录等。同时还提供了发送自定义通知的接口。
 - `MsgServiceObserve`: 接收消息，消息状态变化等观察者接口。
+- `LuceneService`: 聊天消息全文检索接口。
 - `TeamService`: 群组服务接口，用于发送群组消息，管理群组和群成员资料等。
 - `TeamServiceObserve`: 群组和群成员资料变化观察者。
 - `SystemMessageService`: 管理系统通知接口。
@@ -823,8 +836,21 @@ NIMClient.getService(MsgServiceObserve.class).observerAttachProgress(
 	}, true);
 ```
 
-此外，如果第三方APP想保存消息到本地，可以调用 MsgService#saveMessageToLocal ，该接口保存消息到本地数据库，但不发送到服务器端。该接口将消息保存到数据库后，如果需要通知到UI，可将参数 notify 设置为 true ，此时会触发 MsgServiceObserve#observeReceiveMessage 通知。
-此接口在 1.8.0 版本及以上支持设置是否计入未读数（默认计入未读数），若需要不计入未读数，传入的 IMMessage 中的 CustomMessageConfig 的 enableUnreadCount 需要设置为 false 。
+- 保存消息到本地
+
+1\. 如果第三方APP想保存消息到本地，可以调用 MsgService#saveMessageToLocal ，该接口保存消息到本地数据库，但不发送到服务器端。该接口将消息保存到数据库后，如果需要通知到UI，可将参数 notify 设置为 true ，此时会触发 #observeReceiveMessage 通知。
+
+2\. 此接口在 1.8.0 版本及以上支持设置是否计入未读数（默认计入未读数），若需要不计入未读数，传入的 IMMessage 中的 CustomMessageConfig 的 enableUnreadCount 需要设置为 false 。
+
+```
+NIMClient.getService(MsgService.class).saveMessageToLocal(msg, true);
+```
+
+3\. 2.8.0 版本及以上，新增可以设置消息存储时间点的保存消息到本地的接口，其他使用方式与旧的接口一致。常用场景：撤回消息时，在撤回的位置（有可能为消息列表中间）插入消息。
+
+```
+NIMClient.getService(MsgService.class).saveMessageToLocal(message, true, time);
+```
 
 ### <span id="接收消息">接收消息</span>
 
@@ -954,6 +980,16 @@ MsgService 提供了两种方法： deleteRecentContact 和 deleteRecentContact2
 
 ```java
 NIMClient.getService(MsgService.class).deleteRecentContact(recent);
+```
+
+- 删除指定最近联系人的漫游消息
+
+不删除本地消息，但如果在其他端登录，当前时间点该会话已经产生的消息不漫游。
+
+```
+NIMClient.getService(MsgService.class)
+	.deleteRoamingRecentContact(contactId, sessionTypeEnum)
+	.setCallback(new RequestCallback<Void>() { ... });
 ```
 
 ### <span id="自定义消息">自定义消息</span>
@@ -1330,6 +1366,168 @@ NIMClient.getService(MsgService.class).registerIMMessageFilter(new IMMessageFilt
     });
 ```
 
+### <span id="消息撤回">消息撤回</span>
+
+- 发起消息撤回
+
+云信支持发送消息的撤回。超过限定时间（默认时间为2分钟）的撤回会失败，并返回错误码508。消息撤回后，未读数不发生变化，通知栏提醒的文案变为：撤回了一条消息。
+
+几种不能撤回的情况：
+
+1、消息为空，不能撤回
+2、消息没有发送成功，不能撤回
+3、消息发起者不是自己，不能撤回
+4、会话 sessionId 是自己，不能撤回
+
+```
+/**
+*  消息撤回
+*
+* @param message 待撤回的消息
+* @return InvocationFuture 可设置回调函数，监听发送结果。
+*/
+NIMClient.getService(MsgService.class)
+	.revokeMessage(message).setCallback(new RequestCallback<Void>() { ... });
+```
+
+- 监听消息撤回
+
+消息被撤回，会收到消息撤回通知。当开发者收到消息撤回通知，可以在界面上做相应的消息删除等操作。
+
+添加消息撤回通知的观察者代码如下：
+
+```
+NIMClient.getService(MsgServiceObserve.class).observeRevokeMessage(revokeMessageObserver, register);
+
+Observer<IMMessage> revokeMessageObserver = new Observer<IMMessage>() {
+        @Override
+        public void onEvent(IMMessage message) {
+            // 执行消息撤回后的界面操作
+        }
+    };
+```
+
+## <span id="消息全文检索">消息全文检索</span>
+
+云信 SDK 2.7.0 加入基于 Lucene 的全文检索插件，支持聊天消息的全文检索，目前开放的查询接口适用于两类需求（与微信类似）：
+
+- 需求1：
+
+检索所有会话，返回所有匹配关键字的会话、每个会话匹配关键字的消息条数。如果会话只有一条消息匹配，那么直接返回该消息内容，返回的会话数量可以指定，也可以一次性列出所有会话。会话间的排序规则，按照每个会话最近一条匹配消息的时间倒序排列。需要支持多个关键字查询，采用空格隔开，关键字之间是 AND 关系。
+
+- 需求2：
+
+检索单个会话，返回所有匹配关键字的消息，并高亮显示被击中的关键字，可以跳转到该消息的上下文。
+
+云信 SDK 目前主要针对上述两种需求提供查询服务，只要集成了全文检索插件，SDK 会自动同步所有聊天记录到全文检索索引中。
+
+注意：全文检索插件最低需要 Android 14 (Android 4.0)，APP 构建时 targetSdkVersion 强烈建议指向 19 及以上。
+
+在 2.8.0 版本我们已经对依赖的 Lucene 源码做了大幅度的精简，约 1M+ 的大小，对于大的工程，仍然可能造成方法数 65535 的限制，此时可能需要 Multi dex 的支持。
+
+### <span id="插件集成">插件集成</span>
+
+有两种方式，选其一即可：
+
+方式一： libs 中引入 nim-lucene-2.8.0.jar。
+
+方式二： 在 build.gradle 中集成：
+
+```
+dependencies {
+    ...
+    compile 'com.netease.nimlib:lucene:2.8.0'
+}
+```
+
+如果构建 APP 时有使用代码混淆，需要在proguard.cfg中加入
+
+```
+-dontwarn org.apache.lucene.**
+-keep class org.apache.lucene.** {*;}
+```
+
+### <span id="接口说明">接口说明</span>
+
+全文检索接口为：LuceneService，具体 API 如下（下面只列出异步版本，同步版本 API 也提供），针对需求2，强烈建议您使用分页查询接口：
+
+```java
+/**
+ * 检索所有会话，返回每个会话与检索串匹配的消息数及最近一条匹配的消息记录。（异步函数）
+ *
+ * @param query 待检索的字符串
+ * @param limit 最多返回多少条记录
+ * @return InvocationFuture 可以设置回调函数，回调时返回聊天消息全文检索结果集
+*/
+public InvocationFuture<List<MsgIndexRecord>> searchAllSession(String query, int limit);
+
+/**
+ * 检索指定的会话，返回该会话中与检索串匹配的所有消息记录。（异步函数）
+ *
+ * @param query       待检索的字符串
+ * @param sessionType 待检索的会话类型（个人/群组）
+ * @param sessionId   待检索的会话ID
+ * @return 聊天消息全文检索结果集
+*/
+public InvocationFuture<List<MsgIndexRecord>> searchSession(String query, SessionTypeEnum sessionType, String sessionId);
+
+/**
+ * 指定会话关键字查询（分页返回匹配记录）（异步）
+ *
+ * @param query       待检索的字符串
+ * @param sessionType 待检索的会话类型（个人/群组）
+ * @param sessionId   待检索的会话ID
+ * @param pageIndex   页码（从第一页开始）
+ * @param pageSize    分页大小
+ * @return InvocationFuture 可以设置回调函数，回调时返回聊天消息全文检索结果集
+*/
+public InvocationFuture<List<MsgIndexRecord>> searchSessionPage(String query, SessionTypeEnum sessionType, String sessionId, int pageIndex, int pageSize);
+
+/**
+ * 指定会话关键字查询（分页查询：根据锚点，返回下一页匹配记录）（异步）
+ *
+ * @param query       待检索的字符串
+ * @param sessionType 待检索的会话类型（个人/群组）
+ * @param sessionId   待检索的会话ID
+ * @param anchor      首页传null，下一页传上一页的最后一条记录
+ * @param pageSize    分页大小
+ * @return InvocationFuture 可以设置回调函数，回调时返回聊天消息全文检索结果集
+*/
+public InvocationFuture<List<MsgIndexRecord>> searchSessionNextPage(String query, SessionTypeEnum sessionType, String sessionId, MsgIndexRecord anchor, int pageSize);
+
+/**
+ * 指定会话关键字查询匹配记录总数（同步）
+ *
+ * @param query       待检索的字符串
+ * @param sessionType 待检索的会话类型（个人/群组）
+ * @param sessionId   待检索的会话ID
+ * @return 匹配的记录总数
+*/
+public int searchSessionMatchCount(String query, SessionTypeEnum sessionType, String sessionId);
+
+/**
+ * 指定会话关键字查询匹配记录总页数（同步）
+ *
+ * @param query       待检索的字符串
+ * @param sessionType 待检索的会话类型（个人/群组）
+ * @param sessionId   待检索的会话ID
+ * @param pageSize    分页每页记录数
+ * @return 匹配的记录总页数
+*/
+public int searchSessionPageCount(String query, SessionTypeEnum sessionType, String sessionId, int pageSize);
+
+/**
+ * 获取所有缓存数据的大小
+ * @return 缓存数据字节数
+ */
+public long getCacheSize();
+
+/**
+ * 删除所有缓存数据
+ */
+public void clearCache();
+```
+
 ## <span id="消息提醒">消息提醒</span>
 
 集成网易云信 Android SDK 的 APP 运行起来时，会有个后台进程（push 进程），该进程保持了与云信 Server 的长连接。只要这个 push 进程活着（云信提供安卓保活机制），就能接收云信 Server 推过来的消息，进行通知栏提醒。
@@ -1492,6 +1690,27 @@ enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那�
 
 2\. SDK 收到新消息后，还会发送一个广播，在广播接收者的 `onReceive` 中实现自己的状态栏提醒。该广播的 ACTION 为 APP 的包名加上 `NimIntent#ACTION_RECEIVE_MSG`，例如 demo 的为："com.netease.nim.demo.ACTION.RECEIVE\_MSG"。使用这种方式时，开发者需要在 AndroidManifest.xml 文件中注册此广播的接收者，并添加对应的广播权限。
 
+### <span id="PC/Web端在线配置推送">PC/Web端在线配置推送</span>
+
+支持配置桌面端（PC/Web）在线时，移动端是否需要推送。
+
+```
+/**
+* 设置桌面端(PC/WEB)在线时，移动端是否需要推送
+* @param isOpen true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
+* @return InvocationFuture 可以设置回调函数。成功会返回成功信息，错误会返回相应的错误码。
+*/
+NIMClient.getService(SettingsService.class)
+	.updateMultiportPushConfig(isOpen)
+	.setCallback(new RequestCallback<Void>() { ... });
+```
+
+支持查询当前配置的推送状态。true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
+
+```
+NIMClient.getService(SettingsService.class).isMultiportPushOpen()
+```
+
 ## <span id="历史记录">历史记录</span>
 
 ### <span id="本地记录">本地记录</span>
@@ -1540,7 +1759,7 @@ NIMClient.getService(MsgService.class).deleteChattingHistory(message);
 NIMClient.getService(MsgService.class).clearChattingHistory(account, sessionType);
 ```
 
-> 注意：当调用 MsgService#clearChattingHistory 接口删除与某个对象的全部聊天记录后，最近会话列表（最近联系人列表）中对应的项不会被移除，但会清空最近的消息内容，包括消息的时间显示（但 RecentContact 的 tag 字段作为开发者的扩展字段，不会被清除。开发者可使用 tag 进行最近会话列表显示定制）。如果需要移除最近会话项，请调用 MsgService#deleteRecentContact 接口。
+> 注意：当调用 MsgService#clearChattingHistory 接口删除与某个对象的全部聊天记录后，最近会话列表（最近联系人列表）中对应的项不会被移除，但会清空最近的消息内容，包括消息的时间显示（但 RecentContact 的 tag, extension 字段作为开发者的扩展字段，不会被清除。开发者可使用 tag, extension 进行最近会话列表显示定制）。如果需要移除最近会话项，请调用 MsgService#deleteRecentContact 接口。
 
 - 通过消息 uuid 查询消息
 
@@ -1849,9 +2068,9 @@ NIMClient.getService(TeamService.class).addMembers(teamId, accounts)
 
 高级群不能直接拉入，发出邀请成功会返回onFailed，并且返回码为810（这是一个特例，与其他接口成功直接返回 onSuccess 有所不同）。
 
-被邀请的人会收到一条系统通知 (`SystemMessage`)，类型为 `SystemMessageType#TeamInvite`。用户接受该邀请后，才真正入群。
+被邀请的人会收到一条系统通知 (`SystemMessage`)，类型为 `SystemMessageType#TeamInvite`。用户接受该邀请后，才真正入群。可以通过 `SystemMessage#getAttachObject`  获取服务器设置的扩展字段，类型为TeamInviteNotify。
 
-用户入群（普通群被拉人，高级群接受邀请）后，在收到之后的第一条消息时，群内所有成员（包括入群者）会收到一条入群消息，附件类型为 `MemberChangeAttachment`。
+用户入群（普通群被拉人，高级群接受邀请）后，在收到之后的第一条消息时，群内所有成员（包括入群者）会收到一条入群消息，附件类型为 `MemberChangeAttachment`。若通知类型为`NotificationType#InviteMember`，可以通过`MemberChangeAttachment#getExtension` 获取服务器设置的扩展字段。
 
 ### <span id="踢人出群">踢人出群</span>
 
@@ -1862,7 +2081,7 @@ NIMClient.getService(TeamService.class).removeMember(teamId, account)
 	.setCallback(new RequestCallback<Void>() { ... });
 ```
 
-踢人后，群内所有成员(包括被踢者)会收到一条消息类型为 `notification` 的 `IMMessage`，附件类型为 `MemberChangeAttachment`。
+踢人后，群内所有成员(包括被踢者)会收到一条消息类型为 `notification` 的 `IMMessage`，类型为 `NotificationType#KickMember`, 附件类型为 `MemberChangeAttachment`。可以通过`MemberChangeAttachment#getExtension` 获取服务器设置的扩展字段。
 
 ### <span id="主动退群">主动退群</span>
 
@@ -2135,6 +2354,32 @@ NIMClient.getService(TeamService.class).queryTeamMember(teamId, account)
 ```java
 NIMClient.getService(TeamService.class).searchTeam(teamId)
 	.setCallback(new RequestCallback<Team>() { ... });
+```
+
+### <span id="指定群成员强制推送">指定群成员强制推送</span>
+
+群消息支持设置强制推送。强制推送优先级最高，
+
+1、打开强推开关，即使关闭消息提醒，依然能收到通知栏提醒，但是声音和震动跟随本机设置。
+
+2、打开强推开关，即使设置了 PC/Web 端在线时不推送，依然能收到通知栏提醒。
+
+3、无论是否打开强推开关，设置了强推通知文本内容并且位于强推列表中的成员（若强推列表为 null，则表示本群所有成员），收到的消息提醒均显示强推通知文本。
+
+4、强推列表可以配置需要强制推送的群成员，若为 null ，则表示该群所有群成员均收到强制推送消息。
+
+5、打开强推开关，也打开免打扰设置。有通知栏提醒，但是没有声音和震动。
+
+```
+IMMessage message = MessageBuilder.createTextMessage(teamId, SessionTypeEnum.Team, content);
+MemberPushOption option = new MemberPushOption();
+option.setForcePush(true); // 打开强推
+option.setForcePushContent(forcePushContent); // 设置强推通知文本内容
+ArrayList<String> memberAccounts = new ArrayList<>(); 
+memberAccounts.add("uid");
+option.setForcePushList(memberAccounts); // 强推需要通知的帐号列表，null表示所有群成员
+message.setMemberPushOption(option); // 设置强推
+NIMClient.getService(MsgService.class).sendMessage(message, false);
 ```
 
 ## <span id="聊天室">聊天室</span>
@@ -2475,6 +2720,113 @@ Observer<ChatRoomKickOutEvent> kickOutObserver = new Observer<ChatRoomKickOutEve
             // 清空缓存数据
         }
     };
+```
+
+### <span id="更新聊天室信息">更新聊天室信息</span>
+
+支持更新聊天室信息。可以设置更新是否通知，若设置通知，聊天室内会收到类型为`NotificationType#ChatRoomInfoUpdated`的消息。
+
+```
+/**
+* 更新聊天室信息
+*
+* @param roomId             聊天室id
+* @param chatRoomUpdateInfo 可更新的聊天室信息
+* @param needNotify         是否通知
+* @param notifyExtension    更新聊天室信息扩展字段，这个字段会放到更新聊天室信息通知的扩展字段中
+* @return InvocationFuture 可以设置回调函数。更新聊天室信息完成之后才会调用，如果出错，会有具体的错误代码。
+*/
+NIMClient.getService(ChatRoomService.class)
+	.updateRoomInfo(roomId, chatRoomUpdateInfo, needNotify, notifyExtension)
+	.setCallback(new RequestCallback<Void>() { ... });
+```
+
+### <span id="更新本人聊天室成员信息">更新本人聊天室成员信息</span>
+
+支持更新本人聊天室成员信息。目前只支持昵称，头像和扩展字段的更新。可以设置更新是否通知，若设置通知，聊天室内会收到类型为`NotificationType#ChatRoomMyRoomRoleUpdated`的消息。
+
+```
+/**
+* 更新本人在聊天室内的信息
+*
+* @param roomId               聊天室id
+* @param chatRoomMemberUpdate 可更新的本人角色信息
+* @param needNotify           是否通知
+* @param notifyExtension      更新聊天室信息扩展字段，这个字段会放到更新聊天室信息通知的扩展字段中
+* @return InvocationFuture     可以设置回调函数。更新信息完成之后才会调用，如果出错，会有具体的错误代码。
+*/
+NIMClient.getService(ChatRoomService.class)
+	.updateMyRoomRole(roomId, chatRoomMemberUpdate, needNotify, notifyExtension)
+	.setCallback(new RequestCallback<Void>() { ... });
+```
+
+### <span id="队列服务">队列服务</span>
+
+聊天室提供队列服务，针对直播连麦场景使用。
+
+#### <span id="加入或更新队列元素">加入或更新队列元素</span>
+
+> 注意：key是唯一键
+
+当 key 不存在时候，调用该接口，表示加入新元素。
+当 key 存在的时候，调用该接口，表示修改对应 key 的 value。
+
+```
+/**
+* 聊天室队列服务：加入或者更新队列元素
+* @param roomId 聊天室id
+* @param key    新元素（或待更新元素）的唯一键
+* @param value  新元素（待待更新元素）的内容
+* @return InvocationFuture 可以设置回调函数。回调中返回操作成功或者失败具体的错误码。
+*/
+NIMClient.getService(ChatRoomService.class)
+	.updateQueue(roomId, key, value)
+    .setCallback(new RequestCallback<Void>() { ... });
+```
+
+#### <span id="取出队列元素">取出队列元素</span>
+
+> 注意：key是唯一键
+
+key 若为 null， 则表示取出头元素。若不为 null， 则表示取出指定元素。
+
+```
+/**
+* 聊天室队列服务：取出队列头部或者指定元素
+* @param roomId 聊天室id
+* @param key    需要取出的元素的唯一键。若为 null，则表示取出队头元素
+* @return InvocationFuture 可以设置回调函数。如果元素存在或者队列不为空，
+*                          那么回调中返回元素的键值对，否则返回失败错误码。
+*/
+NIMClient.getService(ChatRoomService.class)
+	.pollQueue(roomId, key)
+	.setCallback(new RequestCallback<Entry<String, String>>() { ... });
+```
+
+#### <span id="获取所有队列元素">获取所有队列元素</span>
+
+```
+/**
+* 聊天室队列服务：列出所有队列元素
+* @param roomId 聊天室id
+* @return InvocationFuture 可设置回调函数。回调中返回所有排列的队列元素键值对。
+*/
+NIMClient.getService(ChatRoomService.class)
+	.fetchQueue(roomId)
+	.setCallback(new RequestCallback<List<Entry<String, String>>>() { ... });
+```
+
+#### <span id="删除队列">删除队列</span>
+
+```
+/**
+* 聊天室队列服务：删除队列
+* @param roomId 聊天室id
+* @return InvocationFuture 可设置回调函数。回调中返回操作成功或者失败具体的错误码。
+*/
+NIMClient.getService(ChatRoomService.class)
+	.dropQueue(roomId)
+	.setCallback(new RequestCallback<Void>() { ... });
 ```
 
 ## <span id="系统通知">系统通知</span>
@@ -3048,6 +3400,8 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 
 网易云信提供基于网络的语音、视频聊天功能。支持通话中音视频设备的控制，并支持音视频切换。
 
+***注意: 语音视频通话需要 Android 4.0 及以上版本的系统。***
+
 ### <span id="语音视频通话配置">语音视频通话配置</span>
 
 使用音视频功能，需要在 `AndroidManifest.xml` 文件中配置接收器。
@@ -3298,7 +3652,7 @@ AVChatManager.getInstance().hangUp(new AVChatCallback<Void>() {}
 
 #### 创建多人会话房间
 
-通过一个房间名 `roomName` 来创建多人会话频道。
+通过一个房间名 `roomName` 来创建多人会话房间。
 
 可以传入一个扩展字段 `extraMessage`。 后续加入房间的用户会收到这个扩展字段。
 
@@ -3309,7 +3663,7 @@ AVChatManager.getInstance().createRoom(roomName, extraMessage, new AVChatCallbac
 
 #### 加入多人会话房间
 
-通过一个房间名 `roomName` 来加入一个已经创建好的多人会话频道。
+通过一个房间名 `roomName` 来加入一个已经创建好的多人会话房间。
 
 加入房间时需要指定自己的会话类型 `AVChatTypeEnum`。 主要为音频通话和视频通话两种。
 
@@ -3344,24 +3698,12 @@ public class AVChatActivity implements AVChatStateObserver {
 
 首先返回服务器连接是否成功的回调 `onJoinedChannel`，并通过返回的 result code 做相应的处理。
 
-参数 `code` 返回加入频道是否成功。
+参数 `code` 返回加入频道是否成功。常见错误码参考 <code>JoinChannelCode</code>
 参数 `filePath` `fileName`  在开启服务器录制的情况下返回录制文件的保存路径。
 
 ```java
 @Override
-public void onJoinedChannel(int code, String filePath, String fileName) {
-   handleWithConnectServerResult(res);
-}
-
-/**
-* @param auth_result
-* 200 连接成功
-* 101 连接超时
-* 417 无效频道
-* 401 验证失败
-* 400 格式不对
-*/
-protected void handleWithConnectServerResult(int auth_result) {}
+public void onJoinedChannel(int code, String filePath, String fileName) { }
 ```
 
 #### 加入当前音视频频道用户帐号回调
@@ -3381,6 +3723,13 @@ public void onUserJoined(String account) {}
 // @param event   －1,用户超时离开  0,正常退出
 @Override
 public void onUserLeave(String account, int event) {}
+```
+
+#### 自己成功离开频道回调
+
+```java
+@Override
+public void onLeaveChannel() {}
 ```
 
 #### 版本协议不兼容回调
@@ -3481,6 +3830,27 @@ public void onFirstVideoFrameAvailable(String account) {}
 ```
 
 
+#### 用户第一帧画面绘制后通知
+
+当用户第一帧视频画面绘制后通知。
+
+```java
+@Override
+public void onFirstVideoFrameRendered(String user) {}
+
+```
+
+
+#### 用户视频画面分辨率改变通知
+
+当用户视频画面的分辨率改变时通知。
+
+```java
+@Override
+public void onVideoFrameResolutionChanged(String user, int width, int height, int rotate) {}
+
+```
+
 #### 用户视频帧率汇报
 
 实时汇报用户的视频绘制帧率。
@@ -3491,15 +3861,13 @@ public void onVideoFpsReported(String account, int fps) {}
 
 ```
 
-
-
 ### <span id="通话中的设备控制">通话中的设备控制</span>
 
 通话进行中，可以进行设备静音，扬声器，摄像头切换，开关摄像头和切换通话模式的设置。
 
 #### 通话中实时设置参数
 
-在通话过程中, 可以实时设置部分参数。
+在通话过程中, 可以实时设置部分参数。用户可以通过这些参数进行软硬件编解码切换，清晰度切换等。
 
 ```java
 AVChatParameters params = new AVChatParameters();
@@ -3517,18 +3885,15 @@ params.requestKey(AVChatParameters.KEY_VIDEO_FPS_REPORTED);
 AVChatManager.getInstance().getParameters(params);
 ```
 
-#### 本地及远程用户画布获取
+#### 设置视频绘制画布
 
-可以通过用户帐号获取用户的视频画面画布。
+通过用的<code>account</code>设置用户的视频画布，同时还可以制定画布是否镜像处理，以及相应的缩放模式。
 
-获取自己视频画面画布需要在 `onCallEstablished` 回调后进行。
-
-获取远端视频画面画布需要在 `onUserJoined` 回调后进行。
+对于交换用户画布的操作，需要先把当前用户的画布解除，通过此接口传入<code>null</code>即可解除，然后再设置新的画布。
 
 ```java
-AVChatManager.getInstance().getSurfaceRender(account);
+AVChatManager.getInstance().setupVideoRender(String account, AVChatVideoRender render, boolean mirror, int scalingType);
 ```
-
 
 #### 设置本地语音流静音
 
