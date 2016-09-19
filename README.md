@@ -169,7 +169,7 @@ allprojects {
 }
 ```
 
-第二步，在主工程的 build.gradle 文件中，添加 dependencies。根据自己项目的需求，添加不同的依赖即可。注意：版本号必须一致，这里以2.5.0版本为例：
+第二步，在主工程的 build.gradle 文件中，添加 dependencies。根据自己项目的需求，添加不同的依赖即可。注意：版本号必须一致，这里以1.0.0版本为例：
 
 ```
 dependencies {
@@ -1673,6 +1673,48 @@ public class NimApplication extends Application {
 自定义消息：{说话者}: 自定义消息
 
 除文本消息外，开发者可以通过  `NimStrings` 类修改这些默认提醒内容。
+
+#### 接收消息时定制通知栏的头像
+
+云信支持定制通知栏显示的头像(用户头像、群头像)，在 UserInfoProvider 接口下提供方法：
+
+```
+/**
+ * 如果根据用户账号找不到UserInfo的avatar时，显示的默认头像资源ID
+ *
+ * @return 默认头像的资源ID
+ */
+int getDefaultIconResId();
+
+/**
+ * 为通知栏提供用户头像（一般从本地缓存中取，若未下载或本地不存在，返回null，通知栏将显示默认头像）
+ *
+ * @return 头像位图
+ */
+Bitmap getAvatarForMessageNotifier(String account);
+
+/**
+ * 为通知栏提供消息发送者显示名称（例如：如果是P2P聊天，可以显示备注名、昵称、帐号等；如果是群聊天，可以显示群昵称，备注名，昵称、帐号等）
+ *
+ * @param account     消息发送者账号
+ * @param sessionId   会话ID（如果是P2P聊天，那么会话ID即为发送者账号，如果是群聊天，那么会话ID就是群号）
+ * @param sessionType 会话类型
+ * @return 消息发送者对应的显示名称
+ */
+String getDisplayNameForMessageNotifier(String account, String sessionId, SessionTypeEnum sessionType);
+
+/**
+ * 根据群组ID获取群组头像位图。头像功能可由app自己拼接或自定义，也可以直接使用预置图片作为头像
+ * 为通知栏提供群头像（一般从本地缓存中取，若未下载、未合成或者本地缓存不存，请返回预置的群头像资源ID对应的Bitmap）
+ *
+ * @param tid 群组ID
+ * @return 群组头像位图
+ */
+Bitmap getTeamIcon(String tid);
+```
+实现上述需要的方法，在 SDKOptions 中配置 UserInfoProvider 实例，在 SDK 初始化时传入 SDKOptions 方可生效。
+
+需要注意的是，上述返回头像 Bitmap 的函数，请尽可能从内存缓存里拿头像，如果读取本地头像可能导致 UI 进程阻塞，从而导致通知栏提醒延时弹出。
 
 #### 发送消息时指定消息提醒
 
@@ -3860,6 +3902,25 @@ public void onVideoFrameResolutionChanged(String user, int width, int height, in
 public void onVideoFpsReported(String account, int fps) {}
 
 ```
+
+#### 采集视频数据回调
+
+当用户开始外部视频处理后,采集到的视频数据通过次回调通知。 用户可以对视频数据做相应的美颜等不同的处理。 需要通过<code>setParameters</code>开启视频数据处理。
+
+
+```java
+@Override
+public int onVideoFrameFilter(AVChatVideoFrame frame) {}
+```  
+
+
+#### 采集语音数据回调
+
+当用户开始外部语音处理后,采集到的语音数据通过次回调通知。 用户可以对语音数据做相应的变声等不同的处理。需要通过<code>setParameters</code>开启语音数据处理。
+
+```java
+public int onAudioFrameFilter(AVChatAudioFrame frame) {}
+```  
 
 ### <span id="通话中的设备控制">通话中的设备控制</span>
 
