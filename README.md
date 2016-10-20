@@ -220,6 +220,7 @@ dependencies {
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
     <uses-feature android:name="android.hardware.camera" />
     <uses-feature android:name="android.hardware.camera.autofocus" />
     <uses-feature android:glEsVersion="0x00020000" android:required="true" />
@@ -3871,7 +3872,6 @@ public void onFirstVideoFrameAvailable(String account) {}
 
 ```
 
-
 #### 用户第一帧画面绘制后通知
 
 当用户第一帧视频画面绘制后通知。
@@ -3881,7 +3881,6 @@ public void onFirstVideoFrameAvailable(String account) {}
 public void onFirstVideoFrameRendered(String user) {}
 
 ```
-
 
 #### 用户视频画面分辨率改变通知
 
@@ -3907,20 +3906,38 @@ public void onVideoFpsReported(String account, int fps) {}
 
 当用户开始外部视频处理后,采集到的视频数据通过次回调通知。 用户可以对视频数据做相应的美颜等不同的处理。 需要通过<code>setParameters</code>开启视频数据处理。
 
-
 ```java
 @Override
 public int onVideoFrameFilter(AVChatVideoFrame frame) {}
 ```  
-
 
 #### 采集语音数据回调
 
 当用户开始外部语音处理后,采集到的语音数据通过次回调通知。 用户可以对语音数据做相应的变声等不同的处理。需要通过<code>setParameters</code>开启语音数据处理。
 
 ```java
+@Override
 public int onAudioFrameFilter(AVChatAudioFrame frame) {}
 ```  
+
+#### 语音播放设备变化通知
+
+当用户切换扬声器或者耳机的插拔等操作时, 语音的播放设备都会发生变化通知。 语音设备参考 <code>AVChatAudioDevice</code>
+
+```java
+@Override
+public void onAudioOutputDeviceChanged(int device) {}
+``` 
+
+#### 语音正在说话用户声音强度通知
+
+正在说话用户的语音强度回调，包括自己和其他用户的声音强度。如果一个用户没有说话,或者说话声音小没有被参加到混音,那么这个用户的信息不会在回调中出现。
+
+```java
+@Override
+void onReportSpeaker(Map<String, Integer> speakers, int mixedEnergy) {}
+``` 
+
 
 ### <span id="通话中的设备控制">通话中的设备控制</span>
 
@@ -4106,8 +4123,8 @@ types.add(RTSTunType.TCP);
 
 String pushContent = account + "发起一个会话";
 String extra = "extra_data";
-RTSOptions options = new RTSOptions().setPushContent(pushContent).setExtra(extra).setRecordAudioTun(true)
-            .setRecordTCPTun(true);
+RTSOptions options = new RTSOptions().setRecordAudioTun(true).setRecordTCPTun(true);
+RTSNotifyOption notifyOption = new RTSNotifyOption();
 
 sessionId = RTSManager.getInstance().start(account, types, options, notifyOption, new RTSCallback<RTSData>() { ... });
 if (sessionId == null) {
@@ -4263,7 +4280,7 @@ RTSManager.getInstance().observeChannelState(sessionId, channelStateObserver, re
 RTSChannelStateObserver channelStateObserver = new RTSChannelStateObserver() {
 
     @Override
-    public void onConnectResult(RTSTunType tunType, int code) {
+    public void onConnectResult(RTSTunType tunType, long channelId, int code) {
         // 与服务器连接结果通知，成功返回 200
     }
 
