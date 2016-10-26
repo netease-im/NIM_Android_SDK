@@ -483,7 +483,10 @@ public class NimApplication extends Application {
 }
 ```
 
-再次提醒，如果你的 APP 会启动多个进程，此处无需做特殊处理，在每次 Application 的 `onCreate` 调用初始化代码即可。SDK 会处理好进程关系，并只在需要的进程中初始化。但是，要注意不要在 SDK 进程中再调用各种 Service 提供的接口，也不要在 SDK 进程中做 UI 相关的初始化动作，以免造成资源浪费。判断当前进程是否是在主进程的代码见[总体接口介绍](#总体接口介绍)。
+> 特别提醒：SDK 的初始化方法必须在主进程中调用，在非主进程中初始化无效。请在主进程中调用 SDK XXXService 提供的方法，在主进程中注册 XXXServiceObserver
+的观察者（有事件变更，会回调给主进程的主线程）。如果你的模块运行在非主进程，请自行实现主进程与非主进程的通信（Binder/AIDL/BroadcastReceiver等IPC）将主进程回调或监听返回的数据传递给非主进程。
+
+> 再次提醒：请不要在 SDK 进程中调用各种 Service 提供的接口，也不要在 SDK 进程中做 UI 相关的初始化动作，以免造成资源浪费。判断当前进程是否是在主进程的代码见[总体接口介绍](#总体接口介绍)。
 
 ## <span id="登录与登出">登录与登出</span>
 
@@ -2217,8 +2220,9 @@ NIMClient.getService(TeamService.class).updateTeam(teamId, TeamFieldEnum, value)
 修改后，群内所有成员会收到一条消息类型为 `notification` 的 `IMMessage`，带有一个消息附件，类型为 `UpdateTeamAttachment`。如果注册了群组资料变化观察者，观察者也会收到通知，见[监听群组资料变化](#监听群组资料变化)。
 
 ### <span id ="修改成员的群昵称">修改成员的群昵称</span>
+普通群不支持修改成员的群昵称。
 
-群主和管理员修改群内其他成员的群昵称，仅群主和管理员拥有权限。
+对于高级群，群主和管理员修改群内其他成员的群昵称，仅群主和管理员拥有权限。
 
 群主可以修改所有人的群昵称。管理员只能修改普通群成员的群昵称。
 
@@ -2234,7 +2238,7 @@ NIMClient.getService(TeamService.class).updateMemberNick(teamId, account, nick).
 ```
 
 ### <span id="修改自己的群昵称">修改自己的群昵称</span>
-
+同上，普通群不支持修改自己的群昵称。
 ```
 /**
 * 修改自己的群昵称
@@ -2425,6 +2429,14 @@ message.setMemberPushOption(option); // 设置强推
 NIMClient.getService(MsgService.class).sendMessage(message, false);
 ```
 
+### <span id="查询被禁言群成员列表">查询被禁言群成员列表</span>
+
+调用该查询接口，只返回调用 TeamService#muteTeamMember 禁言的用户，不返回使用群全员禁言接口（服务器接口）禁言的用户。
+
+```
+List<TeamMember> members = NIMClient.getService(TeamService.class).queryMutedTeamMembers(teamId);
+```
+
 ## <span id="聊天室">聊天室</span>
 
 聊天室模型特点：
@@ -2443,7 +2455,7 @@ NIMClient.getService(MsgService.class).sendMessage(message, false);
 
 进入聊天室可选字段：
 
-1\. 用户扩展字段 extension ，进入聊天室后展示用户信息的扩展字段，长度限制4K 。设置后在获取聊天室成员信息 `ChatRoomMember` 时可以查询到此扩展字段；此外，在收到聊天室消息时，可以从 `ChatRoomMessage#ChatRoomMessageExtension#getSenderExtension` 中获取消息发送者的用户信息扩展字段。
+1\. 用户扩展字段 extension ，进入聊天室后展示用户信息的扩展字段，长度限制4K 。设置后在获取聊天室成员信息 `ChatRoomMember` 时可以查询到此扩展字段；此外，在收到聊天室消息时，可以从 `ChatRoomMessage#ChatRoomMessageExtension#getSenderExtension` 中获取消息发送者的用户信息扩展字段。若没有设置，则这个字段为 null。
 
 2\. 通知的扩展字段 notifyExtension ，进入聊天室通知消息扩展字段，长度限制1K（进入聊天室后，聊天室成员都会收到一条通知消息）。设置后，在收到聊天室通知消息时的 `ChatRoomNotificationAttachment` 中可以查询到此扩展字段。
 
@@ -2767,7 +2779,7 @@ Observer<ChatRoomKickOutEvent> kickOutObserver = new Observer<ChatRoomKickOutEve
 
 ### <span id="更新聊天室信息">更新聊天室信息</span>
 
-支持更新聊天室信息。可以设置更新是否通知，若设置通知，聊天室内会收到类型为`NotificationType#ChatRoomInfoUpdated`的消息。
+支持更新聊天室信息，只有创建者和管理员拥有权限更新聊天室信息。可以设置更新是否通知，若设置通知，聊天室内会收到类型为`NotificationType#ChatRoomInfoUpdated`的消息。
 
 ```
 /**
