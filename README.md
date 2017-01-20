@@ -16,152 +16,23 @@
 
 ## <span id="开发准备">开发准备</span>
 
-首先从[网易云信官网](http://netease.im/im-sdk-demo "target=_blank")下载 Android SDK。开发者可以根据实际需求，配置类库。
+网易云信 Android SDK 支持两种方式集成SDK。
 
-注：SDK 最低要求 Android 2.3, 其中网络音视频通话和白板最低要求 Android 4.0。
+1\. 通过 Gradle 集成SDK （推荐）
 
-### <span id="类库配置">类库配置（2.5以下版本）</span>
+2\. 通过类库配置集成SDK
 
- SDK 包的libs文件夹中，包含了网易云信的 jar 文件，各 jni 库文件夹以及 SDK 依赖的第三方库，列表如下：
- 
-```
-libs
-├── armeabi
-│   ├── libne_audio.so （高清语音录制功能必须）
-│   └── libcosine.so （Android 后台保活需要）
-│   ├── libnrtc_engine.so （音视频需要）
-│   └── libnrtc_network.so （音视频需要）
-│   └── librts_network.so （实时会话服务需要）
-├── armeabi-v7a
-│   ├── libne_audio.so
-│   └── libcosine.so
-│   ├── libnrtc_engine.so
-│   └── libnrtc_network.so
-│   └── librts_network.so
-├── x86
-│   ├── libne_audio.so
-│   └── libcosine.so
-│   ├── libnrtc_engine.so
-│   └── libnrtc_network.so
-│   └── librts_network.so
-├── nim-sdk-1.0.0.jar
-├── nrtc-sdk.jar（音视频需要）
-└── cosinesdk.jar (Android 后台保活需要)
-```
+网易云信 Android SDK 2.5.0 以上强烈推荐通过 Gradle 集成 SDK。
 
-将这些文件拷贝到你的工程的 libs 目录下，即可完成配置。
-
-以上文件列表中，nim-sdk-1.0.0.jar (版本号可能会不同)为网易云信 SDK，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
-
-> 注意：如果你只需要 SDK 的基础功能（不含音视频及实时会话服务），则 so 库只需要 libne_audio.so 和 libcosine.so 两个，没有 libnrtc\*.so、librts\*.so，可以去掉 nrtc-sdk.1.0.0.jar；
-如果需要音视频功能，so 库需要加上 libnrtc\*.so，还需加上 nrtc-sdk.jar；
-如果需要实时会话（白板）服务，so 库需要加上librts\*.so；
-如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 
-
-> 特别说明：目前 Android 系统存在 armeabi armeabi-v7a x86 mips arm64-v8a x86_64 mips64 等多种Native库支持。
-云信 SDK 目前只提供其中常用的 armeabi-v7a armeabi x86 三种32位库文件，但是可以以32位兼容模式运行在64位设备上，不会存在功能上的异常现象。当云信 SDK 运行在64位设备上时，应确保没有
-arm64-v8a x86_64 库存在，否则 Android 系统将使用64位模式启动程序，而云信 SDK 目前不支持此种模式。详细说明见[云信Android SDK 64位库兼容问题说明](http://bbs.netease.im/read-tid-267 "target=_blank")
-
-如果你的 APP 的 libs 里面只包含 armeabi 一个文件夹，为了保证在 arm-v7a 上有较好的性能，以及兼容各个平台，可将各目录下的 so 文件名改为原文件名加上"_{arch_of_cpu}"，然后统一放到 armeabi 目录下，SDK 也会加载到正确版本的so库。改名后的目录结构如下：
-
-```
-libs
-├── armeabi
-│   ├── libne_audio_armeabi.so
-│   ├── libcosine_armeabi.so
-│   ├── libnrtc_engine_armeabi.so
-│   ├── libnrtc_network_armeabi.so
-│   ├── librts_network_armeabi.so
-│   ├── libne_audio_armeabi-v7a.so
-│   ├── libcosine_armeabi-v7a.so
-│   ├── libnrtc_engine_armeabi-v7a.so
-│   └── libnrtc_network_armeabi-v7a.so
-│   ├── librts_network_armeabi-v7a.so
-├── x86(如果不考虑支持x86，可不包含)
-│   ├── libne_audio_x86.so
-│   ├── libcosine_x86.so
-│   ├── libnrtc_engine_x86.so
-│   └── libnrtc_network_x86.so
-│   ├── librts_network_x86.so
-├── nim-sdk-1.0.0.jar
-├── nrtc-sdk.jar
-└── cosinesdk.jar
-```
-
-如果你使用的 IDE 是 Android Studio，要将 jni 库按照 IDEA 工程目录的结构，放置在对应的目录中（一般为 src/main/jniLibs）。或者在 build.gradle 中配置好 jniLibs 的 sourceSets（可参考 demo 的 build.gradle）。
-
-### 类库配置（2.5及以上版本）
-
-网易云信 Android SDK v2.5及以上分为两种 SDK 包下载，第一种包含全部功能：IM + 聊天室 + 实时音视频 + 教学白板。第二种包含部分功能，包含：IM + 聊天室。
-
- SDK 包的libs文件夹中，包含了网易云信的 jar 文件，各 jni 库文件夹以及 SDK 依赖的第三方库。
- 
-第一种，包含全部功能的 SDK 包。如果需用云信 SDK 提供的所有功能，将这些文件拷贝到你的工程的 libs 目录下，即可完成配置。列表如下：
-
-```
-libs
-├── armeabi
-│   ├── libne_audio.so （高清语音录制功能必须）
-│   └── libcosine.so （Android 后台保活需要）
-│   ├── libnrtc_engine.so （音视频需要）
-│   └── libnrtc_network.so （音视频需要）
-│   └── librts_network.so （实时会话服务需要）
-├── armeabi-v7a
-│   ├── libne_audio.so
-│   └── libcosine.so
-│   ├── libnrtc_engine.so
-│   └── libnrtc_network.so
-│   └── librts_network.so
-├── x86
-│   ├── libne_audio.so
-│   └── libcosine.so
-│   ├── libnrtc_engine.so
-│   └── libnrtc_network.so
-│   └── librts_network.so
-├── nim-basesdk-1.0.0.jar （基础功能）
-├── nim-chatroom-1.0.0.jar （聊天室需要）
-├── nim-rts-1.0.0.jar （实时会话服务需要）
-├── nim-avchat-1.0.0.jar （音视频需要）
-├── nim-lucene-1.0.0.jar （全文检索需要）
-├── nrtc-sdkjar（音视频需要）
-└── cosinesdk.jar (Android 后台保活需要)
-```
-
-第二种，只包含 IM 基础功能和聊天室功能的 SDK 包。如果只需要 IM 基础功能和聊天室功能，只需要将下面这些文件拷贝到你的工程的 libs 目录下，即可完成配置。列表如下：
-
-```
-libs
-├── armeabi
-│   ├── libne_audio.so （高清语音录制功能必须）
-│   └── libcosine.so （Android 后台保活需要）
-├── armeabi-v7a
-│   ├── libne_audio.so
-│   └── libcosine.so
-├── x86
-│   ├── libne_audio.so
-│   └── libcosine.so
-├── nim-basesdk-1.0.0.jar （基础功能）
-├── nim-chatroom-1.0.0.jar （聊天室需要）
-└── cosinesdk.jar (Android 后台保活需要)
-```
-
-以上文件列表中，jar文件版本号可能会不同，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
-
-> 按需配置jar包：
-如果不需要聊天室功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-1.0.0.jar。
-如果只需要 IM 基础功能和 音视频功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-1.0.0.jar，so 库需要加上 libnrtc\*.so，还需加上nim-avchat-1.0.0.jar 和 nrtc-sdk.jar；
-如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ，以及 assets 文件夹中的cosine文件夹( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 
-如果不需要全文检索功能，可以去掉 nim-lucene-1.0.0.jar（该包有 1M+ 大小，如果没有用到消息全文检索功能，建议去掉）。
-
-***其他配置及相关说明，请参考上一节***
+> 注意：
+> 1\. SDK 最低要求 Android 4.0, 其中网络音视频通话和白板最低要求 Android 4.1。
+> 2\. 从 3.2 版本开始 jni 库支持 64位 系统
 
 ### <span id="通过Gradle集成SDK">通过Gradle集成SDK</span>
 
-网易云信 Android SDK 2.5.0以上支持通过 Gradle 集成 SDK。
-
 首先，在整个工程的 build.gradle 文件中，配置repositories，使用 jcenter 或者 maven ，二选一即可，如下：
 
-```
+```groovy
 allprojects {
     repositories {
         jcenter() // 或者 mavenCentral()
@@ -169,26 +40,111 @@ allprojects {
 }
 ```
 
-第二步，在主工程的 build.gradle 文件中，添加 dependencies。根据自己项目的需求，添加不同的依赖即可。注意：版本号必须一致，这里以1.0.0版本为例：
+第二步，在主工程的 build.gradle 文件中，添加 dependencies。根据自己项目的需求，添加不同的依赖即可。注意：版本号必须一致，这里以3.3.0版本为例：
 
-```
+```groovy
+
+android {
+   defaultConfig {
+       ndk {
+           //设置支持的SO库架构
+           abiFilters "armeabi-v7a", "x86","arm64-v8a","x86_64"
+        }
+   }
+}
+
 dependencies {
     compile fileTree(dir: 'libs', include: '*.jar')
     // 添加依赖。注意，版本号必须一致。
     // 基础功能 (必需)
-    compile 'com.netease.nimlib:basesdk:1.0.0'
+    compile 'com.netease.nimlib:basesdk:3.3.0'
     // 音视频需要
-    compile 'com.netease.nimlib:avchat:1.0.0'
+    compile 'com.netease.nimlib:avchat:3.3.0'
     // 聊天室需要
-    compile 'com.netease.nimlib:chatroom:1.0.0'
+    compile 'com.netease.nimlib:chatroom:3.3.0'
     // 实时会话服务需要
-    compile 'com.netease.nimlib:rts:1.0.0'
+    compile 'com.netease.nimlib:rts:3.3.0'
     // 全文检索服务需要
-    compile 'com.netease.nimlib:lucene:1.0.0'
+    compile 'com.netease.nimlib:lucene:3.3.0'
 }
 ```
 
 > 再次注意：依赖包的版本号必须一致。
+
+### <span id="通过类库配置集成SDK">通过类库配置集成SDK</span>
+
+首先从[网易云信官网](http://netease.im/im-sdk-demo "target=_blank")下载 Android SDK。开发者可以根据实际需求，配置类库。
+
+以下介绍以 Android SDK v2.5及以上版本为例，Android SDK v2.5以下的配置，请咨询技术支持。
+
+网易云信 Android SDK v2.5及以上分为两种 SDK 包下载，第一种包含全部功能：IM + 聊天室 + 实时音视频 + 教学白板。第二种包含部分功能，包含：IM + 聊天室。
+
+SDK 包的libs文件夹中，包含了网易云信的 jar 文件，各 jni 库文件夹以及 SDK 依赖的第三方库。
+
+第一种，包含全部功能的 SDK 包。如果需用云信 SDK 提供的所有功能，将这些文件拷贝到你的工程的 libs 目录下，即可完成配置。列表如下：
+
+```
+libs
+├── arm64-v8a
+│   ├── libne_audio.so （高清语音录制功能必须）
+│   └── libcosine.so （后台保活需要）
+│   ├── libnrtc_engine.so （音视频需要）
+│   └── libnrtc_network.so （音视频需要）
+│   └── librts_network.so （实时会话服务需要）
+├── armeabi-v7a
+│   ├── libne_audio.so
+│   └── libcosine.so
+│   ├── libnrtc_engine.so
+│   └── libnrtc_network.so
+│   └── librts_network.so
+├── x86
+│   ├── libne_audio.so
+│   └── libcosine.so
+│   ├── libnrtc_engine.so
+│   └── libnrtc_network.so
+│   └── librts_network.so
+├── x86_64
+│   ├── libne_audio.so
+│   └── libcosine.so
+│   ├── libnrtc_engine.so
+│   └── libnrtc_network.so
+│   └── librts_network.so
+│
+├── nim-basesdk-3.3.0.jar （基础功能）
+├── nim-chatroom-3.3.0.jar （聊天室需要）
+├── nim-rts-3.3.0.jar （实时会话、文档转码需要）
+├── nim-avchat-3.3.0.jar （音视频需要）
+├── nim-lucene-3.3.0.jar （全文检索需要）
+├── nrtc-sdk.jar（音视频需要）
+└── cosinesdk.jar (Android 后台保活需要)
+```
+
+第二种，只包含 IM 基础功能和聊天室功能的 SDK 包。如果只需要 IM 基础功能和聊天室功能，只需要将下面这些文件拷贝到你的工程的 libs 目录下，即可完成配置。列表如下：
+
+```
+libs
+├── arm64-v8a
+│   ├── libne_audio.so （高清语音录制功能必须）
+│   └── libcosine.so （Android 后台保活需要）
+├── armeabi-v7a
+│   ├── libne_audio.so
+│   └── libcosine.so
+├── x86_64
+│   ├── libne_audio.so
+│   └── libcosine.so
+├── x86
+│   ├── libne_audio.so
+│   └── libcosine.so
+├── nim-basesdk-3.3.0.jar （基础功能）
+├── nim-chatroom-3.3.0.jar （聊天室需要）
+└── cosinesdk.jar (Android 后台保活需要)
+```
+
+以上文件列表中，jar文件版本号可能会不同，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
+
+> 按需配置jar包： 如果不需要聊天室功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-3.3.0.jar。 如果只需要 IM 基础功能和 音视频功能，可以在IM和聊天室的基础包中，去掉nim-chatroom-3.3.0.jar，so 库需要加上 libnrtc*.so，还需加上nim-avchat-3.3.0.jar 和 nrtc-sdk.jar； 如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ，以及 assets 文件夹中的cosine文件夹( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 如果不需要全文检索功能，可以去掉 nim-lucene-3.3.0.jar（该包有 1M+ 大小，如果没有用到消息全文检索功能，建议去掉）。
+
+如果你使用的 IDE 是 Android Studio，要将 jni 库按照 IDEA 工程目录的结构，放置在对应的目录中（一般为 src/main/jniLibs）。或者在 build.gradle 中配置好 jniLibs 的 sourceSets（可参考 demo 的 build.gradle）。
 
 ### <span id="权限与组件">权限与组件</span>
 
@@ -377,6 +333,7 @@ SDK 提供的接口主要按照业务进行分类，大致说明如下：
 - `AVChatManager`: 语音视频通话接口。
 - `RTSManager`: 实时会话接口。
 - `NosService`: 网易云存储服务，提供文件上传和下载。
+- `MixPushService` 第三方推送接口，提供第三方推送服务。
 
 ### <span id="SDK 数据缓存目录结构">SDK 数据缓存目录结构</span>
 
@@ -398,7 +355,7 @@ SDK数据缓存目录下面包含如下子目录：
 
 在你的程序的 Application 的 `onCreate` 中，加入网易云信 SDK 的初始化代码：
 
-```
+```java
 public class NimApplication extends Application {
 
 	public void onCreate() {
@@ -486,9 +443,11 @@ public class NimApplication extends Application {
 > 特别提醒：SDK 的初始化方法必须在主进程中调用，在非主进程中初始化无效。请在主进程中调用 SDK XXXService 提供的方法，在主进程中注册 XXXServiceObserver
 的观察者（有事件变更，会回调给主进程的主线程）。如果你的模块运行在非主进程，请自行实现主进程与非主进程的通信（Binder/AIDL/BroadcastReceiver等IPC）将主进程回调或监听返回的数据传递给非主进程。
 
-> 再次提醒：请不要在 SDK 进程中调用各种 Service 提供的接口，也不要在 SDK 进程中做 UI 相关的初始化动作，以免造成资源浪费。判断当前进程是否是在主进程的代码见[总体接口介绍](#总体接口介绍)。
+[云信Andorid SDK断网重连机制及登录返回码说明 ](http://bbs.netease.im/read-tid-231)
 
 ## <span id="登录与登出">登录与登出</span>
+
+[登录集成必读](http://bbs.netease.im/read-tid-376)
 
 ### <span id="手动登录">手动登录</span>
 
@@ -846,13 +805,13 @@ NIMClient.getService(MsgServiceObserve.class).observerAttachProgress(
 
 2\. 此接口在 1.8.0 版本及以上支持设置是否计入未读数（默认计入未读数），若需要不计入未读数，传入的 IMMessage 中的 CustomMessageConfig 的 enableUnreadCount 需要设置为 false 。
 
-```
+```java
 NIMClient.getService(MsgService.class).saveMessageToLocal(msg, true);
 ```
 
 3\. 2.8.0 版本及以上，新增可以设置消息存储时间点的保存消息到本地的接口，其他使用方式与旧的接口一致。常用场景：撤回消息时，在撤回的位置（有可能为消息列表中间）插入消息。
 
-```
+```java
 NIMClient.getService(MsgService.class).saveMessageToLocal(message, true, time);
 ```
 
@@ -895,7 +854,7 @@ AbortableFuture future = NIMClient.getService(MsgService.class).downloadAttachme
 
 多媒体文件收到之后，会进行自动下载或手动下载。需要在下载完成之后，才能获取到多媒体文件路径，并刷新界面。通过监听消息状态的变化，来查看是否下载完成，示例代码如下：
 
-```
+```java
 // 监听消息状态变化
 NIMClient.getService(MsgServiceObserve.class).observeMsgStatus(statusObserver, register);
 
@@ -990,11 +949,16 @@ NIMClient.getService(MsgService.class).deleteRecentContact(recent);
 
 不删除本地消息，但如果在其他端登录，当前时间点该会话已经产生的消息不漫游。
 
-```
+```java
 NIMClient.getService(MsgService.class)
 	.deleteRoamingRecentContact(contactId, sessionTypeEnum)
 	.setCallback(new RequestCallback<Void>() { ... });
 ```
+
+- 最近会话自定义方案
+
+最近会话自定义 在某些特殊场景下，用户有对最近会话有较强的定制需求，本质上，云信SDK就是提供数据及数据的管理，如果上层业务有自定义的需要，那么要做组合使用（抽象+组合）。
+[云信Android最近联系人列表如何自定义 ](http://bbs.netease.im/read-tid-235)
 
 ### <span id="自定义消息">自定义消息</span>
 
@@ -1150,7 +1114,7 @@ NIMClient.getService(MsgService.class).registerCustomAttachmentParser(new Custom
 
 第一步，定义一个自定义的附件类型，并继承 `FileAttachment`。注意，成员变量都要实现 Serializable。
 
-```
+```java
 public class SnapChatAttachment extends FileAttachment {
 
 	private static final String KEY_PATH = "path";
@@ -1239,6 +1203,9 @@ public class CustomAttachParser implements MsgAttachmentParser {
 NIMClient.getService(MsgService.class).registerCustomAttachmentParser(new CustomAttachParser()); // 监听的注册，必须在主进程中。
 ```
 
+为方便开发者参考，我们提供实现自定义消息的示例：
+[Android自定义消息(类似微信骰子功能) ](http://bbs.netease.im/read-tid-257)
+
 ### <span id="Tip消息">Tip消息</span>
 
 Tip 消息主要用于会话内的通知提醒，可以看做是自定义消息的简化，有独立的消息类型 MsgTypeEnum.tip 。
@@ -1318,7 +1285,7 @@ private Observer<List<MessageReceipt>> messageReceiptObserver = new Observer<Lis
 
 首先，通过 `MessageBuilder` 创建一个待转发的消息，参数为想转发的消息，转发目标的聊天对象id， 转发目标的会话类型。然后，通过 `MsgService#sendMessage` 接口，将消息发送出去。
 
-```
+```java
 // 创建待转发消息
 IMMessage message = MessageBuilder.createForwardMessage(forwardMessage, sessionId, sessionTypeEnum);
 if (message == null) {
@@ -1332,7 +1299,7 @@ NIMClient.getService(MsgService.class).sendMessage(message, false);
 
 网易云信支持清空本地数据库中的所有消息记录。在清空数据记录的同时，可选择是否要同时清空最近联系人列表数据库。若最近联系人列表也被清空，会触发MsgServiceObserve#observeRecentContactDeleted(Observer, boolean)通知
 
-```
+```java
 /**
 * 清空本地所有消息记录
 * @param clearRecent 若为true，将同时清空最近联系人列表数据
@@ -1383,7 +1350,7 @@ NIMClient.getService(MsgService.class).registerIMMessageFilter(new IMMessageFilt
 3、消息发起者不是自己，不能撤回
 4、会话 sessionId 是自己，不能撤回
 
-```
+```java
 /**
 *  消息撤回
 *
@@ -1400,7 +1367,7 @@ NIMClient.getService(MsgService.class)
 
 添加消息撤回通知的观察者代码如下：
 
-```
+```java
 NIMClient.getService(MsgServiceObserve.class).observeRevokeMessage(revokeMessageObserver, register);
 
 Observer<IMMessage> revokeMessageObserver = new Observer<IMMessage>() {
@@ -1437,7 +1404,7 @@ Observer<IMMessage> revokeMessageObserver = new Observer<IMMessage>() {
 
 方式二： 在 build.gradle 中集成：
 
-```
+```groovy
 dependencies {
     ...
     compile 'com.netease.nimlib:lucene:2.8.0'
@@ -1586,6 +1553,7 @@ NIMClient.updateStatusBarNotificationConfig(config);
 * 呼吸灯颜色、闪烁时长
 * 免打扰（是否开启免打扰、设置免打扰开始结束时间），在免打扰时间段的不进行通知栏提醒。
 * 点击通知栏要跳转到哪里（一般来说会跳转到主界面，然后根据对应消息的发送者，跳转到指定的P2P聊天界面）
+* 通知栏样式展示样式配置（折叠、展开）（3.3版本新增）
 
 注意: StatusBarNotificationConfig 中的notificationEntrance 字段指明了点击通知需要跳转到的Activity，Activity启动后可以获取收到的消息：
 
@@ -1682,7 +1650,7 @@ public class NimApplication extends Application {
 
 云信支持定制通知栏显示的头像(用户头像、群头像)，在 UserInfoProvider 接口下提供方法：
 
-```
+```java
 /**
  * 如果根据用户账号找不到UserInfo的avatar时，显示的默认头像资源ID
  *
@@ -1716,17 +1684,17 @@ String getDisplayNameForMessageNotifier(String account, String sessionId, Sessio
  */
 Bitmap getTeamIcon(String tid);
 ```
-实现上述需要的方法，在 SDKOptions 中配置 UserInfoProvider 实例，在 SDK 初始化时传入 SDKOptions 方可生效。
+实现上述需要的方法，在 `SDKOptions` 中配置 `UserInfoProvider` 实例，在 SDK 初始化时传入 `SDKOptions` 方可生效。
 
 需要注意的是，上述返回头像 Bitmap 的函数，请尽可能从内存缓存里拿头像，如果读取本地头像可能导致 UI 进程阻塞，从而导致通知栏提醒延时弹出。
 
 #### 发送消息时指定消息提醒
 
-发送消息时可以设置消息配置选项 CustomMessageConfig，可以设定是否需要推送，是否需要计入未读数等：
+发送消息时可以设置消息配置选项 `CustomMessageConfig`，可以设定是否需要推送，是否需要计入未读数等。
 
-enablePush ： 该消息是否进行推送（消息提醒）。默认为 true 。
+`enablePush` ： 该消息是否进行推送（消息提醒）。默认为 true 。
 
-enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
+`enableUnreadCount` ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
 
 ### <span id="自行实现消息提醒">自行实现消息提醒</span>
 
@@ -1740,7 +1708,7 @@ enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那�
 
 支持配置桌面端（PC/Web）在线时，移动端是否需要推送。
 
-```
+```java
 /**
 * 设置桌面端(PC/WEB)在线时，移动端是否需要推送
 * @param isOpen true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
@@ -1753,9 +1721,315 @@ NIMClient.getService(SettingsService.class)
 
 支持查询当前配置的推送状态。true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
 
-```
+```java
 NIMClient.getService(SettingsService.class).isMultiportPushOpen()
 ```
+
+## <span id="推送">推送</span>
+
+为了提高消息送达率，云信在 Android 进程保活上做了很多努力，但是在国内 Android 系统的大环境下，厂家的深度定制 ROM 对系统做了越来越严格的限制，想要在所有机型上做到永久保活是不可能实现的。因此，云信 SDK 3.2.0 引进第三方消息推送来增加消息送达率。
+
+鉴于谷歌 GCM 服务无法在国内使用，某些第三方推送平台采用的相互唤醒策略容易被 厂商ROM 或者 XX管家 或者 XX卫士 禁止，小米、华为等推送等采用的系统级长连接则具有明显的优势。统计表明在小米系统上小米推送到达率可以达到 90% 以上。
+
+云信 SDK 在提供端内推送外，还提供端外推送来解决进程在厂商限制下可能无法保活的问题，云信SDK 3.2.0 支持的端外推送有小米推送，云信已经打通推送通道，在云信SDK基础上，开发者可快速接入小米推送。从而在 MIUI 上，云信 SDK 进程与服务器连接断开之后，联系人发来的消息将通过小米推送平台推送给用户，从而提高消息达到率。
+
+### <span id="小米推送">小米推送</span>
+
+集成小米推送需要以下几个步骤：
+
+#### 1. 准备工作
+
+- 前往[小米推送官网](http://dev.xiaomi.com/doc/?page_id=1670)注册账号并通过认证，创建应用并获取AppID、AppKey、AppSecret。
+
+- 下载小米推送SDK，将jar包导入到工程中。（云信IM SDK 中并不包含小米推送 SDK，开发者需要自行下载并导入到工程中）
+
+- 前往云信后台管理中心，创建小米推送证书。首先选择需要接入推送的应用，点击证书管理：
+
+![](images/android/certificates.jpg)
+
+在Android推送证书一栏选择添加证书，随后在如下图所示的弹出框中填写对应的信息，其中应用包名填写开发者 Android 应用的包名，AppSecret 填写第一步在小米官网创建应用所获取的 AppSecret，请开发者谨记证书名，这个会在 SDK初始化推送的时候使用。
+
+![](images/android/xiaomi.jpg)
+
+#### 2. 接入流程
+
+快速接入只需要2步，详细可参考[小米推送Android SDK使用指南](http://dev.xiaomi.com/doc/?p=544#d5e25)。
+
+1\. AndroidManifest.xml声明
+
+首先，在权限配置里面，有2处需要改成开发者自己的 APP 包名，已经配置过的条目则无须添加。
+
+```xml
+<!--配置权限，已经配置过的条目则无须添加-->   
+<uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+<uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+<uses-permission android:name="android.permission.READ_PHONE_STATE" />
+<uses-permission android:name="android.permission.GET_TASKS" />
+<uses-permission android:name="android.permission.VIBRATE"/>
+
+<!--以下两处com.netease.nim.demo改开发者App的包名-->   
+<permission android:name="com.netease.nim.demo.permission.MIPUSH_RECEIVE"
+            android:protectionLevel="signature" />
+<uses-permission android:name="com.netease.nim.demo.permission.MIPUSH_RECEIVE" />
+```
+
+下面这些配置直接拷贝到AndroidManifest.xml。
+
+```xml
+<!--配置的service和receiver-->   
+<service
+    android:name="com.xiaomi.push.service.XMPushService"
+    android:enabled="true"
+    android:process=":mixpush"/>
+<service
+    android:name="com.xiaomi.push.service.XMJobService"
+    android:enabled="true"
+    android:exported="false"
+    android:permission="android.permission.BIND_JOB_SERVICE"
+    android:process=":mixpush" />
+    <!--注：此service必须在3.0.1版本以后（包括3.0.1版本）加入-->
+<service
+    android:enabled="true"
+    android:exported="true"
+    android:name="com.xiaomi.mipush.sdk.PushMessageHandler" /> 
+
+<service android:enabled="true"
+    android:name="com.xiaomi.mipush.sdk.MessageHandleService" /> 
+<!--注：此service必须在2.2.5版本以后（包括2.2.5版本）加入-->
+<receiver
+    android:exported="true"
+    android:name="com.xiaomi.push.service.receivers.NetworkStatusReceiver" >
+    <intent-filter>
+        <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+        <category android:name="android.intent.category.DEFAULT" />
+    </intent-filter>
+</receiver>
+<receiver
+    android:exported="false"
+    android:process=":mixpush"
+    android:name="com.xiaomi.push.service.receivers.PingReceiver" >
+    <intent-filter>
+        <action android:name="com.xiaomi.push.PING_TIMER" />
+    </intent-filter>
+</receiver>
+<receiver
+    android:name="com.netease.nimlib.mixpush.mi.MiPushReceiver"
+    android:exported="true">
+    <intent-filter android:priority="0x7fffffff">
+        <action android:name="com.xiaomi.mipush.RECEIVE_MESSAGE"/>
+        <action android:name="com.xiaomi.mipush.MESSAGE_ARRIVED"/>
+        <action android:name="com.xiaomi.mipush.ERROR"/>
+    </intent-filter>
+</receiver>
+```
+
+2\. 配置`appID`，`appkey`，证书
+
+请在 App 启动逻辑中，在 `NIMClient.init()` 之前，调用如下方法在客户端配置小米推送的证书名称 certificate（在云信后台管理系统中配置），`appID` ，`appkey`。可参照云信 Demo。
+
+```java
+NIMPushClient.registerMiPush(context, certificate, appID, appKey);
+```
+
+如果构建 APP 时有使用代码混淆，需要在proguard.cfg中加入
+```
+-dontwarn com.xiaomi.push.**
+-keep class com.xiaomi.** {*;}
+```
+
+至此，小米推送接入完成，现在可以在小米设备上进行消息推送的测试。
+
+#### 3. 小米推送兼容性
+
+若开发者自身业务体系中，也需要接入小米推送，则需要考虑开发者自身业务体系的小米推送与云信消息的小米推送兼容
+需要做好以下2点，其余配置、逻辑都不需要修改。
+
+- 对于小米推送，为了接收推送消息，小米SDK 要求开发者自定义一个继承自 `PushMessageReceiver`类的 `BroadcastReceiver` ，并注册到 `AndroidManifest.xml`。由于小米的特殊处理，同时注册多个继承自 `PushMessageReceiver` 的 `BroadcastReceiver` 会存在收不到消息的情况，要保证开发者自身业务体系的小米推送与云信消息的小米推送兼容，开发者需要将自身的小米推送广播接收器，从继承 `PushMessageReceiver` 改为继承 `MiPushMessageReceiver`。开发者自行处理自身体系的推送消息，云信不做处理。
+
+```java
+/**
+ * 以下这些方法运行在非 UI 线程中, 与小米SDK PushMessageReceiver 方法一一对应。
+ * 开发者如果自身也需要接入小米推送，则应将继承 PushMessageReceiver 改为继承 MiPushMessageReceiver
+ */
+
+public class MiPushMessageReceiver extends BroadcastReceiver{
+
+    @Override
+    public final void onReceive(Context context, Intent intent) {
+    }
+
+    public void onReceivePassThroughMessage(Context context, MiPushMessage message) {
+    }
+
+    public void onNotificationMessageClicked(Context context, MiPushMessage message) {
+    }
+
+    public void onNotificationMessageArrived(Context context, MiPushMessage message) {
+    }
+
+    public void onReceiveRegisterResult(Context context, MiPushCommandMessage message) {
+    }
+
+    public void onCommandResult(Context context, MiPushCommandMessage message) {
+    }
+}
+```
+
+- 在将广播接收器改为继承 `MiPushMessageReceiver` 之后，将该广播在 `AndroidManifest` 中配置如下，开发者只需将广播名称 `Receiver` 替换成自身的广播名。此外，请不要为此 Receiver 配置 `priority`。
+
+```xml
+<receiver android:name=".Receiver"
+    android:exported="true">
+    <intent-filter>
+        <action android:name="com.xiaomi.mipush.RECEIVE_MESSAGE"/>
+        <action android:name="com.xiaomi.mipush.MESSAGE_ARRIVED"/>
+        <action android:name="com.xiaomi.mipush.ERROR"/>
+    </intent-filter>
+</receiver>
+``` 
+
+> 注意：
+> 
+> - 避免在逻辑中调用注销推送方法，即 ` MiPushClient.unregisterPush()`，即便是需要设置关闭推送。 
+> 
+> - 开发者应确保自身业务中推送的流程和逻辑完整，虽然已经调用了`NIMPushClient.registerMiPush()`，仍然要在合适的时机调用 `MiPushClient.registerPush()` 注册推送。由于云信也会在小米设备上调用此方法，因此可能存在 `MiPushMessageReceiver`中 `onReceiveRegisterResult` 多次回调的情形。此外，小米 SDK 在 5s内重复调用 `MiPushClient.registerPush()` 注册推送会被过滤，因此，请开发者不要在应用生命周期中反复调用注册方法。
+
+#### 4. 常见问题
+
+1\. 开发者接入小米推送之后，云信只支持对小米设备进行消息推送，其它设备默认不进行推送。
+
+2\. 云信在使用小米推送时，使用通知栏而不是透传提醒模式，因为透传模式要求应用在后台存活，这样消息到达率很低。
+
+3\. 小米推送通知栏展示效果与端内推送展示效果、点击跳转效果存在一些差异，这个问题云信接下来会做统一。
+
+4\. 第三方推送不支持通知栏自定义：铃声、通知栏样式以及提醒模式，旧版设置只对端内推送生效。
+
+5\. 若用户不需要接入小米推送，则不做任何配置，将不受影响。
+
+6\. 在小米设备上，若网络畅通、账号登陆成功、消息收发正常条件下，若开发者若收不到推送，可从以下几个方面进行排查，
+首先检查 AndroidManifest 配置是否正确，包括权限、Service、BroadcastReceiver，云信SDK对 AndroidManifest 做了检查，并有日志记录；其次检查是否关闭了消息提醒以及设置了免打扰等，
+如果仍然不能解决，可以求助云信技术支持。
+
+
+### <span id="推送消息提醒定制">推送消息提醒定制</span>
+
+云信消息 `IMMessage` 提供了消息提醒定制（可查看[发送消息](#发送消息)这一节），这个功能在第三方推送中也同样支持，自定义的消息提醒包含消息推送文案以及自定义字段。自定义的消息推送文案优先级高于默认的推送文案，而自定义的字段 `payload` 也会跟随小米推送消息携带过来，若开发者需要处理`payload`，可以实现 `MixPushMessageHandler` 接口
+
+自定义推送文案及自定义推送属性通过 IMMessage#setPushContent 及 IMMessage#setPushPayload 来设置。其中 pushContent 决定接收方通知栏展示的内容； pushPayload 可以在接受方点击通知栏之后获得，开发者可以通过它实现消息跳转等功能。
+
+```java
+/**
+ * 第三方推送消息回调接口，用户如果需要自行处理云信的第三方推送消息，则可实现该接口，并注册到{@link NIMPushClient}
+ */
+
+public interface MixPushMessageHandler {
+
+    /**
+     * 第三方推送通知栏点击之后的回调方法
+     * @param context
+     * @param payload IMessage 中的用户设置的自定义pushPayload {@link com.netease.nimlib.sdk.msg.model.IMMessage}
+     * @return true 表示开发者自行处理第三方推送通知栏点击事件，SDK将不再处理; false 表示仍然使用SDK提供默认的点击后的跳转
+     */
+    boolean onNotificationClicked(Context context, Map<String,String> payload);
+
+}
+```
+
+并在 `NIMPushClient.registerMiPush()` 之后调用 
+
+```java
+NIMPushClient.registerMixPushMessageHandler(mixPushMessageHandler);
+```
+
+注册该接口，当有云信消息通过第三方推送到用户，用户点击通知栏之后便回调 `onNotificationClicked` 方法。
+
+自定义推送文案以及自定义推送属性由消息发送端设置，3.2.0 版本中 UIKit 中新增了 `CustomPushContentProvider` 接口
+
+```java
+/**
+ * 用户自定义推送 content 以及 payload 的接口
+ */
+
+public interface CustomPushContentProvider {
+
+    /**
+     * 在消息发出去之前，回调此方法，用户需实现自定义的推送文案
+     *
+     * @param message 云信消息
+     */
+    String getPushContent(IMMessage message);
+
+    /**
+     * 在消息发出去之前，回调此方法，用户需实现自定义的推送payload，它可以被消息接受者在通知栏点击之后得到
+     *
+     * @param message 云信消息
+     */
+    Map<String, Object> getPushPayload(IMMessage message);
+
+}
+```
+
+开发者可以实现该接口，在`getPushContent()` 返回自定义推送文案，`getPushPayload()` 方法返回自定义的字段，在 UIKit 初始化之后设置
+
+```java
+NimUIKit.CustomPushContentProvider(pushContentProvider);
+```
+
+在所有消息发送之前，都会先调用这两个方法来设置消息的自定义推送文案以及自定义字段。
+
+Demo 中给出了实现上述两个接口的示例，由于点击第三方推送通知栏默认跳转到会话列表界面，Demo 中的示例依靠自定义字段 `payload` 实现了跳转至会话界面的功能，详细参考 `DemoMixPushMessageHandler`，`DemoPushContentProvider`。
+
+> 注意，由于消息的自定义推送文案以及字段由消息发送端设置，若开发者要使用该功能，请保证各端（IOS, Android, PC, Web）在发送消息时做到统一。
+>
+> 此外，对于小米推送，`payload` 内容会通过小米推送消息 extra 字段传输，而 extra 字段可以实现一些自定义的功能，如自定义通知栏铃声的URI、通知栏的点击行为等等（小米推送 extra 字段选项请参照小米推送Android 以及服务端文档）。
+> 因此使用 `payload` 能间接达到设置这些自定义推送选项。由于小米SDK extra 字段限制，请各端消息发送 `payload` 字段 key-value 组合不要超过 8 对（若超出可使用嵌套 Map），不要使用 "nim" 作为key，整体 payload 长度不超过1000。
+
+
+### <span id="推送设置">推送设置</span>
+
+#### 1. 云信消息开启、关闭推送
+
+使用 `MixPushService` 提供的 `enable` 方法可以实现。
+
+```java
+/**
+ * 开启/关闭第三方推送服务
+ *
+ * @param enable true 开启，SDK 需要与云信服务器做确认；false 关闭，SDK 也需要通知云信服务器。
+ * @return InvocationFuture 可以设置回调函数。只有与服务器交互完成后才算成功，如果出错，会有具体的错误代码。
+ */
+public InvocationFuture<Void> enable(boolean enable);
+```
+
+调用示例
+
+```java
+NIMClient.getService(MixPushService.class).enable(enable).setCallback(new RequestCallback<Void>(){ ... });
+```
+
+在关闭、开启消息提醒的时候，可以调用该接口关闭推送。
+
+#### 2. 设置推送免打扰时间
+
+使用 `MixPushService` 提供的 `setPushNoDisturbConfig` 方法可以实现。
+
+```java
+/**
+ * 设置推送免打扰时间，时间参数为北京时间的24小时计数 HH:mm，该时间段将不再向用户推送消息
+ * SDK 3.2.0 版本以前的用户，为了将用户设置的免打扰配置与push免打扰同步，应该在监听到登陆同步完成后，
+ * 调用 setPushNoDisturbConfig 方法。如果开发者不使用新版第三方推送功能，只要不调用该方法，则旧的功能不受影响。
+ * 此外，在免打扰设置界面也应该做到同时设置push免打扰
+ * @param isOpen 是否开启
+ * @param startTime 开始时间 格式 HH:mm
+ * @param stopTime 结束时间 格式 HH:mm
+ * @return InvocationFuture 可以设置回调函数。成功会返回成功信息，错误会返回相应的错误码。
+ */
+InvocationFuture<Void> setPushNoDisturbConfig(boolean isOpen, String startTime, String stopTime);
+```
+
+在 3.2.0 版本之前，设置的消息免打扰对本地消息提醒有效，若在3.2.0接入了推送，为了确保设置统一，应该在用户登陆同步完成后，将用户设置的免打扰时间同步设置推送免打扰，参考 Demo 中 `MainActivity` 的做法。
+
 
 ## <span id="历史记录">历史记录</span>
 
@@ -1763,7 +2037,7 @@ NIMClient.getService(SettingsService.class).isMultiportPushOpen()
 
 - 查询消息历史
 
-SDK 提供了一个根据锚点查询本地消息历史记录的接口，根据提供的方向 (direct)，查询比 anchor 更老 (QUERY\_OLD) 或更新 (QUERY\_NEW) 的最靠近anchor 的 limit 条数据。调用者可使用 asc 参数指定结果排序规则，结果使用 time 作为排序字段。
+1\. SDK 提供了一个根据锚点查询本地消息历史记录的接口，根据提供的方向 (direct)，查询比 anchor 更老 (QUERY\_OLD) 或更新 (QUERY\_NEW) 的最靠近anchor 的 limit 条数据。调用者可使用 asc 参数指定结果排序规则，结果使用 time 作为排序字段。
 
 当进行首次查询时，锚点可以用使用 `MessageBuilder#createEmptyMessage` 接口生成。查询结果不包含锚点。
 
@@ -1778,7 +2052,54 @@ SDK 提供了一个根据锚点查询本地消息历史记录的接口，根据�
 NIMClient.getService(MsgService.class).queryMessageListEx(anchor, direction, limit, asc);
 ```
 
-SDK 还提供了按照关键字搜索聊天记录的功能，可以对指定的聊天对象，输入关键字进行消息内容搜索。查询方向为从后往前。以锚点 anchor 作为起始点开始查询，返回最多 limit 条匹配 keyword 的记录。该接口目前仅搜索文本类型的消息，匹配规则为文本内容包含 keyword，目前仅支持精确匹配，不支持模糊匹配和拼音匹配。
+2\. 与 `queryMessageListEx` 方法类似，SDK 还提供一个包含起止时间的查询本地消息历史记录的接口 `queryMessageListExTime`。
+该接口使用方法与 `queryMessageListEx` 类似，增加了一个参数 toTime 作为查询方向上的的截止时间，当方向为 QUERY_OLD 时，toTime 应小于 anchor.getTime()；当方向为 QUERY_NEW 时，toTime 应大于 anchor.getTime()。
+查询结果的范围由 toTime 和 limit 共同决定，以先到为准。如果从 anchor 到 toTime 之间消息大于 limit 条，返回 limit 条记录，如果小于 limit 条，返回实际条数。
+
+```java
+/**
+ * 根据起始、截止时间点以及查询方向从本地消息数据库中查询消息历史。<br>
+ * 根据提供的方向 (direction)，以 anchor 为起始点，往前或往后查询由 anchor 到 toTime 之间靠近 anchor 的 limit 条消息。<br>
+ * 查询范围由 toTime 和 limit 共同决定，以先到为准。如果到 toTime 之间消息大于 limit 条，返回 limit 条记录，如果小于 limit 条，返回实际条数。<br>
+ * 查询结果排序规则：direction 为 QUERY_OLD 时 按时间降序排列，direction 为 QUERY_NEW 时按照时间升序排列。<br>
+ * 注意：查询结果不包含锚点。
+ *
+ * @param anchor 查询锚点
+ * @param toTime 查询截止时间，若方向为 QUERY_OLD，toTime 应小于 anchor.getTime()。方向为 QUERY_NEW，toTime 应大于 anchor.getTime() <br>
+ * @param direction 查询方向
+ * @param limit 查询结果的条数限制
+ * @return 调用跟踪，可设置回调函数，接收查询结果
+ */
+public InvocationFuture<List<IMMessage>> queryMessageListExTime(IMMessage anchor, long toTime, QueryDirectionEnum direction, int limit);
+```
+
+3\. 通过消息 uuid 查询消息。
+
+```java
+// 通过uuid批量获取IMMessage(异步版本)
+List<String> uuids = new ArrayList<>();
+uuids.add(message.getUuid());
+NIMClient.getService(MsgService.class).queryMessageListByUuid(uuids);
+
+// 通过uuid批量获取IMMessage(同步版本)
+NIMClient.getService(MsgService.class).queryMessageListByUuidBlock(uuids);
+```
+
+4\. 通过消息类型从本地消息数据库中查询消息历史。查询范围由 msgTypeEnum 参数和 anchor 的 sessionId 决定。该接口查询方向为从后往前。以锚点 anchor 作为起始点（不包含锚点），往前查询最多 limit 条消息。
+
+```java
+/**
+* @param msgTypeEnum MsgTypeEnum 消息类型
+* @param anchor IMMessage        搜索的消息锚点
+* @param limit int               搜索结果的条数限制
+* @return
+*/
+NIMClient.getService(MsgService.class).queryMessageListByType(msgTypeEnum, anchor, limit);
+```
+
+- 本地消息搜索
+
+1\. SDK 还提供了按照关键字搜索聊天记录的功能，可以对指定的聊天对象，输入关键字进行消息内容搜索。查询方向为从后往前。以锚点 anchor 作为起始点开始查询，返回最多 limit 条匹配 keyword 的记录。该接口目前仅搜索文本类型的消息，匹配规则为文本内容包含 keyword，目前仅支持精确匹配，不支持模糊匹配和拼音匹配。
 由于 SDK 并不存储用户数据，因此 keyword 不会匹配用户资料。如果调用者希望查询指定用户的说话记录，可提供 fromAccounts 参数。如果提供的 fromAccounts 参数不为空，那么 anchor 对应的会话 (由 sessionId 和 sessionType决定) 的消息记录中，凡是消息说话者在 fromAccounts 列表中的记录，也会被当做匹配结果，加入搜索结果中。
 
 ```java
@@ -1794,50 +2115,11 @@ SDK 还提供了按照关键字搜索聊天记录的功能，可以对指定的�
 	 .setCallback(new RequestCallbackWrapper<List<IMMessage>>(){ ... });
 ```
 
-此外，SDK 还提供了按照关键字全局搜索聊天记录的接口：MsgService#searchAllMessageHistory，用法与上述类似。目前暂不提供索引方式的全文检索功能，该全局搜索接口需要开发者评估大数据情况下的性能开销。
+2\. 此外，SDK 还提供了按照关键字全局搜索聊天记录的接口：MsgService#searchAllMessageHistory，用法与上述类似。目前暂不提供索引方式的全文检索功能，该全局搜索接口需要开发者评估大数据情况下的性能开销。
 
-- 删除消息记录：
+3\. 根据时间点搜索消息历史。该接口查询方向以某个时间点为基准从后往前，返回最多limit条匹配key的记录。该接口目前仅搜索文本类型的消息，匹配规则为文本内容包含keyword，仅支持精确匹配，不支持模糊匹配和拼音匹配。 由于sdk并不存储用户数据，因此keyword不会匹配用户资料。如果调用者希望查询指定用户的说话记录，可提供fromAccounts参数。如果提供的fromAccounts参数不为空，那么凡是消息说话者在fromAccounts列表中的记录，也会被当做匹配结果，加入搜索结果中。
 
 ```java
-// 删除单条消息
-NIMClient.getService(MsgService.class).deleteChattingHistory(message);
-// 删除与某个聊天对象的全部消息记录
-NIMClient.getService(MsgService.class).clearChattingHistory(account, sessionType);
-```
-
-> 注意：当调用 MsgService#clearChattingHistory 接口删除与某个对象的全部聊天记录后，最近会话列表（最近联系人列表）中对应的项不会被移除，但会清空最近的消息内容，包括消息的时间显示（但 RecentContact 的 tag, extension 字段作为开发者的扩展字段，不会被清除。开发者可使用 tag, extension 进行最近会话列表显示定制）。如果需要移除最近会话项，请调用 MsgService#deleteRecentContact 接口。
-
-- 通过消息 uuid 查询消息
-
-```
-// 通过uuid批量获取IMMessage(异步版本)
-List<String> uuids = new ArrayList<>();
-uuids.add(message.getUuid());
-NIMClient.getService(MsgService.class).queryMessageListByUuid(uuids);
-
-// 通过uuid批量获取IMMessage(同步版本)
-NIMClient.getService(MsgService.class).queryMessageListByUuidBlock(uuids);
-```
-
-- 通过消息类型查询消息
-
-通过消息类型从本地消息数据库中查询消息历史。查询范围由 msgTypeEnum 参数和 anchor 的 sessionId 决定。该接口查询方向为从后往前。以锚点 anchor 作为起始点（不包含锚点），往前查询最多 limit 条消息。
-
-```
-/**
-* @param msgTypeEnum MsgTypeEnum 消息类型
-* @param anchor IMMessage        搜索的消息锚点
-* @param limit int               搜索结果的条数限制
-* @return
-*/
-NIMClient.getService(MsgService.class).queryMessageListByType(msgTypeEnum, anchor, limit);
-```
-
-- 根据时间点搜索消息历史
-
-该接口查询方向以某个时间点为基准从后往前，返回最多limit条匹配key的记录。该接口目前仅搜索文本类型的消息，匹配规则为文本内容包含keyword，仅支持精确匹配，不支持模糊匹配和拼音匹配。 由于sdk并不存储用户数据，因此keyword不会匹配用户资料。如果调用者希望查询指定用户的说话记录，可提供fromAccounts参数。如果提供的fromAccounts参数不为空，那么凡是消息说话者在fromAccounts列表中的记录，也会被当做匹配结果，加入搜索结果中。
-
-```
 /**
 * @param keyword      文本消息的搜索关键字
 * @param fromAccounts 消息说话者帐号列表，如果消息说话在该列表中，那么无需匹配keyword，对应的消息记录会直接加入搜索结果集中。
@@ -1848,6 +2130,17 @@ NIMClient.getService(MsgService.class).queryMessageListByType(msgTypeEnum, ancho
 NIMClient.getService(MsgService.class).searchAllMessageHistory(keyword, fromAccounts, time, limit)
 	.setCallback(new RequestCallbackWrapper<List<IMMessage>>(){ ... });
 ```
+
+- 删除消息记录
+
+```java
+// 删除单条消息
+NIMClient.getService(MsgService.class).deleteChattingHistory(message);
+// 删除与某个聊天对象的全部消息记录
+NIMClient.getService(MsgService.class).clearChattingHistory(account, sessionType);
+```
+
+> 注意：当调用 MsgService#clearChattingHistory 接口删除与某个对象的全部聊天记录后，最近会话列表（最近联系人列表）中对应的项不会被移除，但会清空最近的消息内容，包括消息的时间显示（但 RecentContact 的 tag, extension 字段作为开发者的扩展字段，不会被清除。开发者可使用 tag, extension 进行最近会话列表显示定制）。如果需要移除最近会话项，请调用 MsgService#deleteRecentContact 接口。
 
 
 ### <span id="云端记录">云端记录</span>
@@ -2066,7 +2359,7 @@ fields.put(TeamFieldEnum.Name, teamName);
 fields.put(TeamFieldEnum.Introduce, teamIntroduce);
 fields.put(TeamFieldEnum.VerifyType, verifyType);
 NIMClient.getService(TeamService.class).createTeam(fields, type, "", accounts)
-     setCallback(new RequestCallback<Team> { ... });
+     .setCallback(new RequestCallback<Team> { ... });
 ```
 
 ### <span id="加入群组">加入群组</span>
@@ -2226,7 +2519,7 @@ NIMClient.getService(TeamService.class).updateTeam(teamId, TeamFieldEnum, value)
 
 群主可以修改所有人的群昵称。管理员只能修改普通群成员的群昵称。
 
-```
+```java
 /**
 * 修改成员的群昵称
 * @param teamId  所在群组ID
@@ -2239,7 +2532,7 @@ NIMClient.getService(TeamService.class).updateMemberNick(teamId, account, nick).
 
 ### <span id="修改自己的群昵称">修改自己的群昵称</span>
 同上，普通群不支持修改自己的群昵称。
-```
+```java
 /**
 * 修改自己的群昵称
 * @param teamId  所在群组ID
@@ -2251,7 +2544,7 @@ NIMClient.getService(TeamService.class).updateMyTeamNick(teamId, nick).setCallba
 
 ### <span id="修改自己的群成员扩展字段">修改自己的群成员扩展字段</span>
 
-```
+```java
 /**
 * 修改自己的群成员扩展字段（自定义属性）
 *
@@ -2417,7 +2710,7 @@ NIMClient.getService(TeamService.class).searchTeam(teamId)
 
 5、打开强推开关，也打开免打扰设置。有通知栏提醒，但是没有声音和震动。
 
-```
+```java
 IMMessage message = MessageBuilder.createTextMessage(teamId, SessionTypeEnum.Team, content);
 MemberPushOption option = new MemberPushOption();
 option.setForcePush(true); // 打开强推
@@ -2433,11 +2726,13 @@ NIMClient.getService(MsgService.class).sendMessage(message, false);
 
 调用该查询接口，只返回调用 TeamService#muteTeamMember 禁言的用户，不返回使用群全员禁言接口（服务器接口）禁言的用户。
 
-```
-List<TeamMember> members = NIMClient.getService(TeamService.class).queryMutedTeamMembers(teamId);
+```java
+List<TeamMember> members = NIMClient.getService(TeamService.class).queryMutedTeamMembers(teamIdEdit.getText().toString());
 ```
 
 ## <span id="聊天室">聊天室</span>
+
+[集成聊天室必读](http://bbs.netease.im/read-tid-375)
 
 聊天室模型特点：
 
@@ -2473,21 +2768,21 @@ SDK 有聊天室断线重连机制，会在网络恢复后做重连并自动登�
 如果为在线状态变更为 UNLOGIN 则表示自动登录失败（例如账号被群主拉黑，聊天室状态异常等），那么在状态变更观察者回调中可以调用 SDK 接口获取服务器返回的失败原因，并在界面上做相应的处理（比如退出聊天室）。
 
 进入聊天室错误码主要有：
-414:参数错误
-404:聊天室不存在
-403:无权限
-500:服务器内部错误 
-13001:IM主连接状态异常 
-13002:聊天室状态异常 
-13003:黑名单用户禁止进入聊天室 
+414: 参数错误
+404: 聊天室不存在
+403: 无权限
+500: 服务器内部错误
+13001: IM主连接状态异常
+13002: 聊天室状态异常
+13003: 黑名单用户禁止进入聊天室
 
 ```java
 /**
 * 获取进入聊天室失败的错误码
-* 如果是手动登录，在 enterChatRoom 的回调函数中已有错误码。
-* 如果是断网重连，在自动登录失败时，即监听到在线状态变更为 UNLOGIN 时，可以采用此接口查看具体自动登录失败的原因，如果是13001，13002，13003，403，404，414错误，此时应该调用离开聊天室接口。
+* 如果是手动登录，在 enterChatRoom 的回调函数中获取错误码。用本函数获取会返回 -1(UNKNOWN)。
+* 如果是断网重连，在自动登录失败时，即监听到在线状态变更为 UNLOGIN 时，可以采用此接口查看具体自动登录失败的原因，如果是 13001，13002，13003，403，404，414 错误，此时应该调用离开聊天室接口。
 */
-int errorCode = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId));
+int errorCode = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId)); // 在手动登录成功后，SDK 自动维护断网重连期间调用
 ```
 
 ### <span id="离开聊天室">离开聊天室</span>
@@ -2692,7 +2987,7 @@ NIMClient.getService(ChatRoomService.class)
 
 聊天室支持设置临时禁言，禁言时长时间到了，自动取消禁言。设置临时禁言成功后的通知消息中，包含的时长是禁言剩余时长。若设置禁言时长为0，表示取消临时禁言。若第一次设置的禁言时长还没结束，又设置第二次临时禁言，以第二次设置的时间开始计时。
 
-```
+```java
 /**
 * 设置聊天室成员临时禁言
 * @param needNotify 是否需要发送广播通知，true：通知，false：不通知
@@ -2781,7 +3076,7 @@ Observer<ChatRoomKickOutEvent> kickOutObserver = new Observer<ChatRoomKickOutEve
 
 支持更新聊天室信息，只有创建者和管理员拥有权限更新聊天室信息。可以设置更新是否通知，若设置通知，聊天室内会收到类型为`NotificationType#ChatRoomInfoUpdated`的消息。
 
-```
+```java
 /**
 * 更新聊天室信息
 *
@@ -2800,7 +3095,7 @@ NIMClient.getService(ChatRoomService.class)
 
 支持更新本人聊天室成员信息。目前只支持昵称，头像和扩展字段的更新。可以设置更新是否通知，若设置通知，聊天室内会收到类型为`NotificationType#ChatRoomMyRoomRoleUpdated`的消息。
 
-```
+```java
 /**
 * 更新本人在聊天室内的信息
 *
@@ -2826,7 +3121,7 @@ NIMClient.getService(ChatRoomService.class)
 当 key 不存在时候，调用该接口，表示加入新元素。
 当 key 存在的时候，调用该接口，表示修改对应 key 的 value。
 
-```
+```java
 /**
 * 聊天室队列服务：加入或者更新队列元素
 * @param roomId 聊天室id
@@ -2845,7 +3140,7 @@ NIMClient.getService(ChatRoomService.class)
 
 key 若为 null， 则表示取出头元素。若不为 null， 则表示取出指定元素。
 
-```
+```java
 /**
 * 聊天室队列服务：取出队列头部或者指定元素
 * @param roomId 聊天室id
@@ -2860,7 +3155,7 @@ NIMClient.getService(ChatRoomService.class)
 
 #### <span id="获取所有队列元素">获取所有队列元素</span>
 
-```
+```java
 /**
 * 聊天室队列服务：列出所有队列元素
 * @param roomId 聊天室id
@@ -2873,7 +3168,7 @@ NIMClient.getService(ChatRoomService.class)
 
 #### <span id="删除队列">删除队列</span>
 
-```
+```java
 /**
 * 聊天室队列服务：删除队列
 * @param roomId 聊天室id
@@ -3455,7 +3750,7 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 
 网易云信提供基于网络的语音、视频聊天功能。支持通话中音视频设备的控制，并支持音视频切换。
 
-***注意: 语音视频通话需要 Android 4.0 及以上版本的系统。***
+***注意: 语音视频通话需要 Android 4.1 及以上版本的系统。***
 
 ### <span id="语音视频通话配置">语音视频通话配置</span>
 
@@ -3951,6 +4246,16 @@ void onReportSpeaker(Map<String, Integer> speakers, int mixedEnergy) {}
 ``` 
 
 
+#### 伴音事件通知
+
+当伴音出错或者结束时，通过此回调进行通知
+
+```java
+@Override
+void onAudioMixingEvent(int event) {}
+``` 
+
+
 ### <span id="通话中的设备控制">通话中的设备控制</span>
 
 通话进行中，可以进行设备静音，扬声器，摄像头切换，开关摄像头和切换通话模式的设置。
@@ -3987,7 +4292,7 @@ AVChatManager.getInstance().setupVideoRender(String account, AVChatVideoRender r
 
 #### 设置本地语音流静音
 
-将设置本地发送语音是否静音。**注意：不影响本地语音数据发送。**
+将设置本地发送语音是否静音。
 
 ```java
 AVChatManager.getInstance().muteLocalAudio(true);
@@ -3995,7 +4300,7 @@ AVChatManager.getInstance().muteLocalAudio(true);
 
 #### 设置远端用户语音流静音
 
-将设置是否播放其他用户的语音数据。**注意：不影响远端语音数据接收。**
+将设置是否播放其他用户的语音数据。
 
 ```java
 AVChatManager.getInstance().muteRemoteAudio(account, true);
@@ -4003,7 +4308,7 @@ AVChatManager.getInstance().muteRemoteAudio(account, true);
 
 #### 设置本地视频流静音
 
-设置本地视频数据是否发送。**注意：不影响本地视频数据采集绘制。**
+设置本地视频数据是否发送。
 
 ```java
 AVChatManager.getInstance().muteLocalVideo(true);
@@ -4011,7 +4316,7 @@ AVChatManager.getInstance().muteLocalVideo(true);
 
 #### 设置远端用户视频流静音
 
-将设置是否绘制远端用户的视频数据。**注意：不影响远端视频数据接收。**
+将设置是否绘制远端用户的视频数据。
 
 ```java
 AVChatManager.getInstance().muteRemoteVideo(account, true);
@@ -4086,6 +4391,95 @@ AVChatManager.getInstance().takeSnapshot(account);
 AVChatManager.getInstance().enableAudienceRole(true);
 ```
 
+#### 本地语音伴音
+
+在通话过程中，可以指定本地音频文件来和麦克风采集的音频流进行混音或者替换。
+
+开启本地语音伴音，可以通过参数指定是否循环，替换本地语音，以及初始音量[0.0f - 1.0f]。
+伴音的状态通知 <code>onDeviceEvent</code>，事件类型为 <code>AUDIO_MIXING_ERROR</code> 以及 <code>AUDIO_MIXING_FINISHED</code>.
+
+```java
+AVChatManager.getInstance().startAudioMixing(filePath, loopback, replace, cycle, volume);
+```
+
+暂停本地语音伴音
+
+```java
+AVChatManager.getInstance().pauseAudioMixing();
+```
+
+恢复本地语音伴音，伴音文件将从暂停时位置开始播放
+
+```java
+AVChatManager.getInstance().resumeAudioMixing();
+```
+
+停止本地语音伴音
+
+```java
+AVChatManager.getInstance().stopAudioMixing();
+```
+
+本地语音伴音音量，通过参数 <code>KEY_AUDIO_MIXING_STREAM_VOLUME</code> 来调整伴音音量，音量范围[0.0f - 1.0f].
+
+```java
+AVChatManager.getInstance().setParameters(param);
+```
+
+### <span id="网络通话可选参数">网络通话可选参数</span>
+
+网络通话可选参数分为通话前可设置参数以及通话过程中可设置参数。 通话前参数设置主要为 `AVChatOptionalConfig` ，通过过程中参数设置为 `AVChatParameters`。
+
+#### 通话前可选设置参数
+
+主要介绍各种参数的含义以及默认值，在加入会话时进行设置。
+
+* <code>AVChatOptionalConfig#enableCallProximity(true)</code>, 是否打开语音通话时距离感应器。
+* <code>AVChatOptionalConfig#enableVideoCrop(true)</code>, 双人通话时，是否打开视频发送前根据对方屏幕尺寸进行裁剪。
+* <code>AVChatOptionalConfig#enableVideoRotate(true)</code>, 是否打开视频图像根据设备角度自动旋转。
+* <code>AVChatOptionalConfig#enableAudienceRole(true)</code>, 多人通话是否观众角色进入。
+* <code>AVChatOptionalConfig#enableServerRecordAudio(false)</code>, 是否打开服务器录制音频,服务器录制需要开通相关业务。
+* <code>AVChatOptionalConfig#enableServerRecordVideo(false)</code>, 是否打开服务器录制视频,服务器录制需要开通相关业务。
+* <code>AVChatOptionalConfig#setDefaultFrontCamera(true)</code>, 是否默认采用前置摄像头通话。
+* <code>AVChatOptionalConfig#setVideoQuality(QUALITY_DEFAULT)</code>, 设置期望的视频清晰度。
+* <code>AVChatOptionalConfig#enableVideoFpsReported(true)</code>, 是否允许进行帧率汇报。
+* <code>AVChatOptionalConfig#setVideoMaxBitrate(0)</code>, 设置视频最大码率，默认采用预先配置。
+* <code>AVChatOptionalConfig#setVideoFrameRate(15)</code>, 设置期望的视频帧率。
+* <code>AVChatOptionalConfig#setAudioEffectNSMode(PLATFORM_BUILTIN)</code>, 设置优先使用的降噪模块。
+* <code>AVChatOptionalConfig#setAudioEffectAECMode(PLATFORM_BUILTIN)</code>, 设置优先使用的回音消除模块。
+* <code>AVChatOptionalConfig#setDefaultDeviceRotation(0)</code>, 设置设备默认的旋转角度。
+* <code>AVChatOptionalConfig#setDeviceRotationFixedOffset(0)</code>, 设置设备需要修正的旋转角度。
+* <code>AVChatOptionalConfig#setVideoEncoderMode(MEDIA_CODEC_AUTO)</code>, 设置采用的视频编码器。
+* <code>AVChatOptionalConfig#enableLive(false)</code>, 是否允许互动直播。
+* <code>AVChatOptionalConfig#setLiveUrl(null)</code>, 设置互动直播的推流地址。
+* <code>AVChatOptionalConfig#setLivePIPMode(PIP_FLOATING_RIGHT_VERTICAL)</code>, 设置互动直播时进行连麦混屏模式。
+* <code>AVChatOptionalConfig#setVideoDecoderMode(MEDIA_CODEC_AUTO)</code>, 设置采用的视频解码器。
+* <code>AVChatOptionalConfig#enableAudioHighQuality(false)</code>, 设置是否采用高清语音模式。
+* <code>AVChatOptionalConfig#enableAudioDtx(true)</code>, 设置是否采用DTX编码发送。
+* <code>AVChatOptionalConfig#enableLiveServerRecord(false)</code>, 是否打开互动直播服务器录制, 需要开通相关业务。
+
+
+#### 通话时可选设置参数
+
+在通话过程中进行设置。
+
+```java
+AVChatManager.getInstance().setParameters(param);;
+```
+
+* <code>AVChatParameters#KEY_VIDEO_ENCODER_MODE</code>, 视频编码器。
+* <code>AVChatParameters#KEY_VIDEO_DECODER_MODE</code>, 视频解码器。
+* <code>AVChatParameters#KEY_VIDEO_CROP_BEFORE_SEND</code>, 视频发送前是否裁剪。
+* <code>AVChatParameters#KEY_VIDEO_ROTATE_BEFORE_RENDING</code>, 视频绘制时是否自动旋转。
+* <code>AVChatParameters#KEY_VIDEO_FPS_REPORTED</code>, 是否汇报帧率。
+* <code>AVChatParameters#KEY_VIDEO_MAX_BITRATE</code>, 设置视频最大码率。
+* <code>AVChatParameters#KEY_VIDEO_QUALITY</code>, 设置视频清晰度。
+* <code>AVChatParameters#KEY_KEY_SESSION_LIVE_URL</code>, 设置互动直播推流地址。
+* <code>AVChatParameters#KEY_VIDEO_FRAME_FILTER</code>, 是否需要外部额外处理视频数据，美颜等。
+* <code>AVChatParameters#KEY_AUDIO_FRAME_FILTER</code>, 是否需要外部额外处理音频数据，变声等。
+* <code>AVChatParameters#KEY_AUDIO_REPORT_SPEAKER</code>, 是否需要汇报正在说话用户声音强度。
+* <code>AVChatParameters#KEY_AUDIO_MIXING_STREAM_VOLUME</code>, 调整伴音音量。
+
 
 ### <span id="网络通话其它接口">网络通话其它接口</span>
 
@@ -4097,11 +4491,227 @@ AVChatManager.getInstance().enableAudienceRole(true);
 AVChatManager.getInstance().checkPermission(context);
 ```
 
+#### 网络探测
+ 在通话前或者通话中进行网络探测，用于检测用户当前网络的接入质量。
+
+开启网络探测，返回本次任务的ID
+
+```java
+AVChatNetDetector.startNetDetect(callback);
+```
+
+结束网络探测，传入探测任务ID
+
+```java
+AVChatNetDetector.stopNetDetect(id);
+```
+
+网络探测结果通知
+
+```java
+AVChatNetDetectCallback#onDetectResult( ... );
+```
+
+
+**网络探测情况分级表**
+
+在结果信息中，lossRate、rttAverage、rttMeanDeviation这三个值最能反应当前客户端的实际网络情况。由这三个值可以计算出当前的网络状况指数：
+
+```
+网络状况指数 = (lossRate/20)*50% +(rttAverage/1200)*25% +(rttMeanDeviation/150)*25%
+```
+经过我们的反复测试，现提供三个网络状况指数节点
+
+| 网络状况指数节点      |    lossRate（%）| rttAverage（ms） |rttMeanDeviation（ms） |网络状况指数|
+| :--------: | :--------:| :--: |:--:|:--:|
+| A | 3 | 500  |50|0.2625|
+| B | 10 |  800  |80|0.55|
+| C | 20 |  1200   |150|1|
+
+**备注：**
+
+1. 当网络状况指数≤0.2625时，网络状况非常好，音视频通话流畅；
+
+2. 当0.2625＜网络状况指数≤0.55时，网络状况好，音视频通话偶有卡顿；
+
+3. 当0.55＜网络状况指数≤1时，网络状况差，音频通话流畅；
+
+4. 当网络状况指数＞1时，网络状况非常差，音频通话偶有卡顿。
+
+
+
+## <span id="互动直播">互动直播</span>
+
+网易云信 SDK 提供了完整的互动直播推流和音视频连麦功能，主要有以下功能:
+- 支持主播推流直播
+- 支持主播和观众一对一实时连麦，并且合并推流
+- 支持两种连麦方式：纯语音连麦和视频连麦
+- 支持互动直播过程中动态设置清晰度，码率和编解码器
+- 支持互动直播过程中动态更换推流地址
+
+
+***注意: 互动直播需要 <code>Android 4.1</code> 及以上版本的系统，同时推荐主播使用中高端 <code>Android</code> 机器。***
+
+
+### <span id="互动直播概念">互动直播概念</span>
+
+- 房间
+    互动直播房间与音视频多人会议的房间概念一致，以房间名称为唯一标识。互动直播房间需要先创建成功后才能加入，当所有用户都离开房间后，可以复用该房间名重新创建。
+
+- 主播
+    互动直播房间的主用户，推流地址的指定者，直播的主画面源。需要首先加入房间，连麦者才能加入。
+
+- 连麦用户
+    互动直播房间的次用户，直播辅画面源，与主播加入同一房间，即能实现实时连麦互动。需要主播在房间时才能加入。
+
+- 观众
+    互动直播中除了主播和连麦者，观看直播画面的其他用户。可以通过停止播放直播并加入互动房间转变为连麦者。
+
+> `互动直播与多人音视频关系:`
+> 互动直播基于音视频多人会议开发，通过将多人会议中用户的音视频数据处理后推送给视频流服务器实现直播和实时连麦。
+> 在功能的提供上，互动直播复用多人音视频接口，增加互动开关、推流地址指定与切换、直播角色指定等扩展设置
+
+
+### <span id="互动直播接入流程">互动直播接入流程</span>
+
+SDK提供简单的互动推流和连麦接口，只需要创建并加入互动房间即可以实现直播推流；连麦者以相同的房间名加入即可以实现实时连麦互动。
+
+
+#### <span id="创建互动直播房间">加入互动直播房间</span>
+
+通过一个房间名 `roomName` 来创建互动直播房间。
+
+```java
+AVChatManager.getInstance().createRoom(roomName, extraMessage, new AVChatCallback<AVChatChannelInfo>() {}
+```
+
+#### <span id="加入互动直播房间">加入互动直播房间</span>
+
+通过一个房间名 `roomName` 来加入一个已经创建好的互动直播房间。
+
+```java
+AVChatManager.getInstance().joinRoom(roomName, callType, config, new AVChatCallback<AVChatData>() {}
+```
+
+- 主播加入房间需要打开` config#enableLive` 开关，同时还需要指定` config#setLiveUrl` 推流地址。当收到` AVChatStateObserver#onCallEstablished` 后，主播就开始推流，
+观众即可使用拉流播放器观看主播直播。 如果主播开始加入房间的时候不想开启推流，则可以仅需指定` config#setLiveUrl` 推流地址，后续通过实时开启互动直播接口
+ ` AVChatManager#startLive` 进行动态的控制。 
+
+- 连麦观众加入房间需要打开` config#enableLive` 开关，同时不能指定` config#setLiveUrl` 推流地址。当连麦观众成功加入房间后，其他观众就可以观看到双人连麦互动直播。
+
+- 连麦画中画混屏模式设置 ` config#setLivePIPMode` ， 目前支持多种混屏模式设置，可以参考 ` AVChatLivePIPMode`，[混屏模式图文介绍](http://netease.im/blog/hddoc/ "target=_blank")。
+
+- 互动直播服务器录制设置 ` config#enableLiveServerRecord` ， 需要后台开通相关业务。
+
+
+#### <span id="实时动态开启互动直播">实时动态开启互动直播</span>
+
+加入房间的时候不开启互动直播, 中途动态的调用此接口开启互动直播。 如果想作为主播开启互动直播，那么在加入房间的时候就必须指定 ` config#liveUrl` 推流地址。
+成功调用开启互动直播后，会有相应的回调通知 ` AVChatStateObserver#onStartLiveResult` ，通过通知的返回码来最终确认互动直播是否开启成功。
+
+```java
+AVChatManager.getInstance().startLive();
+```
+
+```java
+/**
+ * 调用 {@link AVChatManager#startLive()} 后的结果返回
+ *
+ * @param code 相关错误码
+ * @see com.netease.nimlib.sdk.avchat.constant.AVChatResCode.LiveCode
+*/
+void onStartLiveResult(int code);
+```
+
+
+#### <span id="实时动态关闭互动直播">实时动态关闭互动直播</span>
+
+主播和连麦观众可以实时动态的关闭直播推流。 
+成功调用关闭互动直播后，会有相应的回调通知 ` AVChatStateObserver#onStopLiveResult` ，通过通知的返回码来最终确认互动直播是否关闭成功。
+
+```java
+AVChatManager.getInstance().stopLive();
+```
+
+```java
+/**
+ * 调用 {@link AVChatManager#stopLive()} 后的结果返回
+ *
+ * @param code 相关错误码
+ * @see com.netease.nimlib.sdk.avchat.constant.AVChatResCode.LiveCode
+*/
+void onStopLiveResult(int code);
+```
+
+#### <span id="实时更新推流地址">实时更新推流地址</span>
+
+在互动直播的过程中可以实时的更新推流地址。如果加入房间时就没有指定推流地址，那么后续也不能实时更新推流地址。
+
+```java
+AVChatManager.getInstance().setParameters(AVChatParameters params);
+```
+
+` AVChatParameters` 参数:
+
+* ` KEY_SESSION_LIVE_URL`  推流地址。
+
+
+#### <span id="互动直播音视频控制">互动直播音视频控制</span>
+
+互动直播基本继承了多人音视频的控制操作，主要介绍下重要的几个操作:
+
+- 动态切换清晰度
+```java
+AVChatManager.getInstance().setParameters(AVChatParameters params);
+```
+
+` AVChatParameters` 参数: ` KEY_VIDEO_QUALITY` 
+
+- 实时设置视频最大码率
+```java
+AVChatManager.getInstance().setParameters(AVChatParameters params);
+```
+
+` AVChatParameters` 参数: ` KEY_VIDEO_MAX_BITRATE` 
+
+- 实时设置视频编解码模式
+```java
+AVChatManager.getInstance().setParameters(AVChatParameters params);
+```
+
+` AVChatParameters` 参数: ` KEY_VIDEO_ENCODER_MODE` ，` KEY_VIDEO_DECODER_MODE`
+
+- 静音操作
+```java
+AVChatManager.getInstance().muteLocalAudio(true);
+```
+
+- 切换摄像头
+```java
+AVChatManager.getInstance().switchCamera;
+```
+
+
+#### <span id="连麦开始与结束通知">连麦开始与结束通知</span>
+
+- 加入房间以后，收到其他用户加入的通知 `AVChatStateObserver#onUserJoined` ，表示连麦开始。
+- 房间里的用户收到其他用户离开的通知 `AVChatStateObserver#onUserLeave` ，表示连麦结束，此时连麦者应该主动退出房间，主播不要退出房间。
+
+
+#### <span id="离开互动直播房间">离开互动直播房间</span>
+
+离开一个已经加入的互动直播房间。
+
+```java
+    AVChatManager.getInstance().leaveRoom(new AVChatCallback<Void>() {}
+```
 
 
 ## <span id="实时会话（白板）">实时会话（白板）</span>
 
-网易云信提供数据通道（TCP/UDP/语音通道)来满足实时会话的需求，如在线白板教学(参考demo)、文件传输等场景，其中 TCP/UDP 通道，可以同时存在多个，语音通道全局只能有一个。
+网易云信提供数据通道（TCP/Audio)来满足实时会话的需求，如在线白板教学(参考demo)、文件传输等场景，其中 TCP 通道，可以同时存在多个，语音通道全局只能有一个。
+
+> 服务器白板录制: 服务器会将用户发送的数据，每个成员录制到一个文件中。云信 SDK 3.2版本之前，录制数据是纯裸数据录制；SDK 3.2 版本开始，针对用户发的每条数据前追加8字节数据，包括32位的长度 和 32位的时间戳。
 
 ### <span id="实时会话配置">实时会话配置</span>
 
@@ -4123,15 +4733,15 @@ AVChatManager.getInstance().checkPermission(context);
 
 #### 发起会话/创建数据通道（主叫方）
 
-目前我们提供两种数据通道：TCP 通道和语音通道，后续会支持 UDP 通道。通道类型见  `RTSTunType`,可选参数见  `RTSOptions`（包含推送内容、发起方附带给其他参与者的内容、是否录制通道数据等）
+目前我们提供两种数据通道：TCP 通道和 Audio 通道。通道类型见  `RTSTunnelType`,可选参数见  `RTSOptions`（包含推送内容、发起方附带给其他参与者的内容、是否录制通道数据等）
 一个会话可以同时创建多个通道，但全局只能有一个语音通道。发起会话时，RTSNotifyOption 中可进行iOS端推送通知自定义配置，同时也包含一个可自定的扩展字段。
 例如：
 
 ```java
 
-List<RTSTunType> types = new ArrayList<>(1);
-types.add(RTSTunType.AUDIO);
-types.add(RTSTunType.TCP);
+List<RTSTunnelType> types = new ArrayList<>(1);
+types.add(RTSTunnelType.AUDIO);
+types.add(RTSTunnelType.TCP);
 
 String pushContent = account + "发起一个会话";
 String extra = "extra_data";
@@ -4292,32 +4902,37 @@ RTSManager.getInstance().observeChannelState(sessionId, channelStateObserver, re
 RTSChannelStateObserver channelStateObserver = new RTSChannelStateObserver() {
 
     @Override
-    public void onConnectResult(RTSTunType tunType, long channelId, int code) {
-        // 与服务器连接结果通知，成功返回 200
+    public void onConnectResult(String localSessionId, RTSTunnelType tunType, long channelId, int code, String recordFile) {
+        // 与服务器连接结果通知，成功返回 200, 同时返回服务器录制文件的地址
     }
 
     @Override
-    public void onRecordInfo(RTSTunType tunType, String url, String name) {
-        // 服务器返回通道数据录制的地址和名称（一般在登录服务器成功后返回）
-    }
-
-    @Override
-    public void onChannelEstablished(RTSTunType tunType) {
+    public void onChannelEstablished(String localSessionId, RTSTunnelType tunType) {
     	// 双方通道连接建立(对方用户已加入)
     }
 
     @Override
-    public void onDisconnectServer(RTSTunType tunType) {
+    public void onUserJoin(String localSessionId, RTSTunnelType tunType, String account) {
+        // 用户加入
+    }
+
+    @Override
+    public void onUserLeave(String localSessionId, RTSTunnelType tunType, String account, int event) {
+        // 用户离开
+    }
+
+    @Override
+    public void onDisconnectServer(String localSessionId, RTSTunnelType tunType) {
     	// 与服务器断开连接
     }
 
     @Override
-    public void onError(RTSTunType tunType, int code) {
+    public void onError(String localSessionId, RTSTunnelType tunType, int error) {
     	// 通道发生错误
     }
 
     @Override
-    public void onNetworkStatusChange(RTSTunType tunType, int value) {
+    public void onNetworkStatusChange(String localSessionId, RTSTunnelType channelType, int value) {
         // 网络信号强弱
     }
 };
@@ -4340,7 +4955,7 @@ RTSManager.getInstance().close(sessionId, new RTSCallback<Void>() { ... });
 发送数据，需要构造  `RTSTunData`, 需要指定会话 ID，通道类型，对方帐号，数据（字节数组）及数据的长度。如果需要发送数据到所有用户，对方帐号填 null。
 
 ```java
-RTSTunData channelData = new RTSTunData(sessionId, RTSTunType.TCP, toAccount, data.getBytes("UTF-8"), data.getBytes().length);
+RTSTunData channelData = new RTSTunData(sessionId, RTSTunnelType.TCP, toAccount, data.getBytes("UTF-8"), data.getBytes().length);
 RTSManager.getInstance().sendData(channelData);
 ```
 
@@ -4383,6 +4998,197 @@ RTSManager.getInstance().setMute(sessionId, true);
 
 ```java
 RTSManager.getInstance().setSpeaker(sessionId, true);
+```
+
+
+## <span id="多人实时会话">多人实时会话</span>
+
+网易云信提供数据通道（TCP)来满足实时会话的需求，如在线白板教学(参考demo)、文件传输等场景。 多人实时会话内部不包含 Audio 通道，不包含呼叫通知协议等。
+
+> 推荐使用多人实时会话来实现各种需要实时数据传输的场景。
+
+> 服务器白板录制: 服务器会将用户发送的数据，每个成员录制到一个文件中。云信 SDK 3.2版本之前，录制数据是纯裸数据录制；SDK 3.2 版本开始，针对用户发的每条数据前追加8字节数据，包括32位的长度 和 32位的时间戳。
+
+### <span id="实时会话主流程">实时会话主流程</span>
+
+#### 创建多人实时会话频道
+
+创建一个多人实时会话频道，通过传入 `sessionId` 来表示频道名， `extraMessage` 创建会话时传入的附加信息，所有加入频道的用户都会收到此消息。
+例如：
+
+```java
+String sessionId = "sessionId"
+String extraMessage = "extra msg";
+RTSManager2.getInstance().createSession(sessionId, extraMessage, new RTSCallback<Void>() { ... });
+```
+
+#### 加入多人实时会话频道
+
+通过 `sessionId` 频道名来加入一个已经创建好的频道， 加入时可以指定 `enableServerRecord` 开决定是否录制传输数据。
+
+```java
+String sessionId = "sessionId"
+boolean enableServerRecord = true;
+RTSManager2.getInstance().joinSession(sessionId, enableServerRecord,  new RTSCallback<RTSData>() { ... });
+```
+
+#### 离开多人实时会话频道
+
+通过 `sessionId` 频道名来离开一个已经加入的频道。
+
+```java
+String sessionId = "sessionId"
+RTSManager2.getInstance().leaveSession(String sessionId, new RTSCallback<Void>() { ... });
+```
+
+#### <span id="发送控制信息">发送控制信息 </span>
+
+双方会话建立之后，就可以相互发送控制信息了。
+
+```java
+RTSManager.getInstance().sendControlCommand(sessionId, content, new RTSCallback<Void>() { ... });
+```
+
+#### 监听会话控制通知
+
+双方会话建立之后，需要监听会话控制通知。
+
+```java
+RTSManager.getInstance().observeControlNotification(sessionId, controlObserver, register);
+
+Observer<RTSControlEvent> controlObserver = new Observer<RTSControlEvent>() {
+    @Override
+    public void onEvent(RTSControlEvent rtsControlEvent) {
+        // your code
+    }
+};
+```
+
+#### 监听数据通道的状态
+
+发起会话（对方接受后），或者接受了会话请求后，需要立即注册对数据通道状态的监听。
+
+```java
+RTSManager.getInstance().observeChannelState(sessionId, channelStateObserver, register);
+
+RTSChannelStateObserver channelStateObserver = new RTSChannelStateObserver() {
+
+    @Override
+    public void onConnectResult(String localSessionId, RTSTunnelType tunType, long channelId, int code, String recordFile) {
+        // 与服务器连接结果通知，成功返回 200, 同时返回服务器录制文件的地址
+    }
+
+    @Override
+    public void onChannelEstablished(String localSessionId, RTSTunnelType tunType) {
+    	// 双方通道连接建立(对方用户已加入)
+    }
+
+    @Override
+    public void onUserJoin(String localSessionId, RTSTunnelType tunType, String account) {
+        // 用户加入
+    }
+
+    @Override
+    public void onUserLeave(String localSessionId, RTSTunnelType tunType, String account, int event) {
+        // 用户离开
+    }
+
+    @Override
+    public void onDisconnectServer(String localSessionId, RTSTunnelType tunType) {
+    	// 与服务器断开连接
+    }
+
+    @Override
+    public void onError(String localSessionId, RTSTunnelType tunType, int error) {
+    	// 通道发生错误
+    }
+
+    @Override
+    public void onNetworkStatusChange(String localSessionId, RTSTunnelType channelType, int value) {
+        // 网络信号强弱
+    }
+};
+```
+
+### <span id="数据收发">数据收发</span>
+
+数据通道建立之后就可以进行数据的收发。
+
+#### 发送数据
+
+发送数据，需要构造  `RTSTunData`, 需要指定会话 ID，通道类型，对方帐号，数据（字节数组）及数据的长度。如果需要发送数据到所有用户，对方帐号填 null。
+
+```java
+RTSTunData channelData = new RTSTunData(sessionId, RTSTunnelType.TCP, toAccount, data.getBytes("UTF-8"), data.getBytes().length);
+RTSManager.getInstance().sendData(channelData);
+```
+
+#### 接收数据
+
+数据通道建立完之后，就可以监听对方发送来的数据。
+
+```java
+RTSManager.getInstance().observeReceiveData(sessionId, receiveDataObserver, register);
+Observer<RTSTunData> receiveDataObserver = new Observer<RTSTunData>() {
+    @Override
+    public void onEvent(RTSTunData rtsTunData) {
+        String data = "[parse bytes error]";
+        try {
+            data = new String(rtsTunData.getData(), 0, rtsTunData.getLength(), "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        }
+
+        TransactionCenter.getInstance().onReceive(sessionId, data);
+    }
+};
+```
+
+### <span id="音频设备控制">音频设备控制</span>
+
+在语音通道建立成功之后，可以对音频设备进行操作，目前开放的操作接口如下：
+
+#### 静音开关
+
+开启静音后，对方将收不到语音。
+
+```java
+RTSManager.getInstance().setMute(sessionId, true);
+```
+
+#### 扬声器开关
+
+语音默认在听筒播放，开启扬声器后，由听筒切换到扬声器。
+
+```java
+RTSManager.getInstance().setSpeaker(sessionId, true);
+```
+
+## <span id="文档转码">文档转码</span>
+网易云信提供文档转码服务，可用于在线教育、多人会议等场景，文档转码接口包含文档查询和文档删除，在文档查询的结果中有转码后文档的详细信息和下载地址，开发者可以通过下载地址自行下载后进行视觉展现。
+
+### <span id="文档分页查询">文档分页查询</span>
+
+文档分页查询协议，只有文档的所有者有权限进行查询，传入文档documentId来表示查询的起始文档的Id，若为空，表示从头开始查找，按照文档转码的发起时间降序排列，传入limit来表示查询的文档的最大数目，有最大值限制，目前为30，在回调结果中对查询结果处理。代码示例如下：
+
+```java
+DocumentManager.getInstance().queryDocumentDataList(documentId, limit, new RequestCallback<List<DMData>>() { ... });
+```
+
+### <span id="单个文档查询">单个文档查询</span>
+
+单个文档的查询协议，应用内的所有用户都可以查询,传入文档documentId来表示文档的id，在回调结果中对查询结果进行处理。代码示例如下：
+
+```java
+DocumentManager.getInstance().querySingleDocumentData(documentId, new RequestCallback<DMData>() { ... });
+```
+
+### <span id="单个文档删除">单个文档删除</span>
+
+单个文档删除协议（对于正在转码中的文档，删除后将不会收到转码结果的下发），传入documentId来表示需要删除的文档id，在回调结果中对删除结果进行处理。代码示例如下：
+
+```java
+DocumentManager.getInstance().delete(documentId, new RequestCallback<Void>() { ... });
 ```
 
 ## <span id="容易混淆的概念">容易混淆的概念</span>
