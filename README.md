@@ -201,9 +201,17 @@ libs
         <service 
             android:name="com.netease.nimlib.service.NimService"
             android:process=":core"/>
-            
+
+       <!-- 运行后台辅助服务 -->
         <service
             android:name="com.netease.nimlib.service.NimService$Aux"
+            android:process=":core"/>
+
+        <!-- 声明云信后台辅助服务 -->
+        <service
+            android:name="com.netease.nimlib.job.NIMJobService"
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE"
             android:process=":core"/>
 
         <!-- 云信SDK的监视系统启动和网络变化的广播接收器，用户开机自启动以及网络变化时候重新登录，
@@ -2836,17 +2844,25 @@ NIMClient.getService(ChatRoomServiceObserver.class)
 
 ### <span id="获取历史消息">获取历史消息</span>
 
-聊天室支持获取云端消息记录的功能。以 startTime（单位毫秒） 为时间戳，拉取 limit 条消息。拉取到的消息中也包含成员操作的通知消息。
+聊天室支持获取云端消息记录的功能，进入聊天室时，不会下发该聊天室的历史消息，开发者应主动查询历史消息。
+
+1\. 以 startTime（单位毫秒） 为时间戳，往前拉取 limit 条消息。拉取到的消息中也包含成员操作的通知消息。
 
 ```java
 /**
- * 获取历史消息
+ * 获取历史消息，默认从给定时间点往前查询
  *
  * @param roomId    聊天室id
  * @param startTime 时间戳，单位毫秒
  * @param limit     可拉取的消息数量
  * @return InvocationFuture 可以设置回调函数。回调中返回历史消息列表
  */
+InvocationFuture<List<ChatRoomMessage>> pullMessageHistory(String roomId, long startTime, int limit);
+```
+
+使用示例：
+
+```java
 NIMClient.getService(ChatRoomService.class).pullMessageHistory(roomId, 0, 10)
 	.setCallback(new RequestCallbackWrapper<List<IMMessage>>() {
 	@Override
@@ -2856,6 +2872,23 @@ NIMClient.getService(ChatRoomService.class).pullMessageHistory(roomId, 0, 10)
 		}
 	}
 });
+```
+
+2\. 以 startTime（单位毫秒） 为时间戳，选择查询方向往前或者往后拉取 limit 条消息。拉取到的消息中也包含成员操作的通知消息。
+
+查询结果排序如查询方向有关，若方向往前，则结果排序按时间逆序，反之则结果排序按时间顺序。
+```java
+/**
+ * 获取历史消息,可选择给定时间往前或者往后查询
+ *
+ * @param roomId    聊天室id
+ * @param startTime 时间戳，单位毫秒
+ * @param limit     可拉取的消息数量
+ * @param direction 查询方向
+ * @return InvocationFuture 可以设置回调函数。回调中返回历史消息列表
+ */
+InvocationFuture<List<ChatRoomMessage>> pullMessageHistoryEx(String roomId, 
+    long startTime, int limit, QueryDirectionEnum direction);
 ```
 
 ### <span id="获取聊天室基本信息">获取聊天室基本信息</span>
@@ -3757,8 +3790,9 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 使用音视频功能，需要在 `AndroidManifest.xml` 文件中配置接收器。
 
 ```xml
-<!-- 申明本地电话状态（通话状态）的广播接收器，第三方APP集成时音视频模块时，如果需要网络通话与本地电话互斥，请加上此接收器 -->
-<receiver android:name="com.netease.nimlib.receiver.IncomingCallReceiver">
+<!-- 申明本地电话状态（通话状态）的广播接收器，第三方APP集成时音视频模块时，如果需要在App中处理网络通话与本地电话的交互请加上此接收器 -->
+<!-- 在Demo的示例代码中是在Application进行了网络通话与本地电话的互斥处理 -->
+<receiver android:name="com.netease.nim.demo.avchat.receiver.IncomingCallReceiver">
     <intent-filter>
         <action android:name="android.intent.action.PHONE_STATE"/>
     </intent-filter>
@@ -3768,6 +3802,8 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 ### <span id="双人语音视频通话流程">双人语音视频通话流程</span>
 
 #### 发起通话（主叫方）
+
+音视频发起通话是持续呼叫的，不管被叫方是在线还是离线都对其持续进行呼叫。
 
 会话类型参数 `AVChatTypeEnum` 主要分为语音通话和视频通话。
 
@@ -3793,6 +3829,10 @@ private void registerAVChatIncomingCallObserver(boolean register) {
     AVChatManager.getInstance().observeIncomingCall(new Observer<AVChatData>() {
         @Override
         public void onEvent(AVChatData chatData) {
+            if (PhoneCallStateObserver.getInstance().getPhoneCallState() != PhoneCallStateObserver.PhoneCallStateEnum.IDLE) {
+                 AVChatManager.getInstance().sendControlCommand(AVChatControlCommand.BUSY, null);
+                 return;
+            }
             AVChatActivity.launch(DemoCache.getContext(), chatData);
         }
     }, register);
@@ -3865,11 +3905,6 @@ Observer<AVChatCalleeAckEvent> callAckObserver = new Observer<AVChatCalleeAckEve
                 // 对方拒绝接听
             } else if (ackInfo.getEvent() == AVChatEventType.CALLEE_ACK_AGREE) {
             	// 对方同意接听
-                if (ackInfo.isDeviceReady()) {
-                    // 设备初始化成功，开始通话
-                } else {
-                    // 设备初始化失败，无法进行通话
-                }
             }
         }
     };
@@ -3911,6 +3946,14 @@ AVChatManager.getInstance().ackSwitchToVideo(true, new AVChatCallback<Void>() { 
 
 // 拒绝音频切换到视频
 AVChatManager.getInstance().ackSwitchToVideo(false, null);
+```
+
+#### 发送通话控制通知
+
+通话时发送控制命令，在通话控制通知中处理对方发来的不同的命令。
+
+```java
+AVChatManager.getInstance().sendControlCommand(controlCommand, new AVChatCallback<Void>() { ... });
 ```
 
 #### 监听通话控制通知
@@ -3964,27 +4007,6 @@ Observer<AVChatTimeOutEvent> timeoutObserver = new Observer<AVChatTimeOutEvent>(
 	public void onEvent(AVChatTimeOutEvent event) {
 			// 超时类型
 		}
-	}
-};
-```
-
-#### 监听网络通话发起，接听或正在进行时有本地来电的通知
-
-网络通话发起或者正在接通时，需要监听是否有本地来电（用户接通本地来电）。若有本地来电，网络通话自动拒绝或者挂断。
-
-```java
-AVChatManager.getInstance().observeAutoHangUpForLocalPhone(autoHangUpForLocalPhoneObserver, register);
-
-/** 参数为自动挂断的原因：
-* 1 作为被叫方：网络通话有来电还未接通，此时有本地来电，那么拒绝网络来电
-* 2 作为主叫方：正在发起网络通话时有本地来电，那么挂断网络呼叫
-* 3 双方正在进行网络通话，当有本地来电，用户接听时，挂断网络通话
-* 4 如果发起网络通话，无论是否建立连接，用户又拨打本地电话，那么网络通话挂断
-*/
-Observer<Integer> autoHangUpForLocalPhoneObserver = new Observer<Integer>() {
-	@Override
-	public void onEvent(Integer integer) {
-		// 结束通话
 	}
 };
 ```
@@ -4113,7 +4135,7 @@ public void onNetworkQuality(String account, int value) {}
 
 #### 音视频连接成功建立回调
 
-音视频连接建立，会回调 `onCallEstablished`。音频切换到正在通话的界面，并开始计时等处理。视频则通过用户账户取出 SurfaceView 并添加到相应的 layout 上显示图像。
+音视频连接建立，会回调 `onCallEstablished`。音频切换到正在通话的界面，并开始计时等处理。视频则通过为用户设置对应画布并添加到相应的 layout 上显示图像。
 
 ```java
 @Override
@@ -4121,7 +4143,7 @@ public void onCallEstablished() {
 	if (state == AVChatTypeEnum.AUDIO.getValue()) {
 		aVChatUIManager.onCallStateChange(CallStateEnum.AUDIO);
 	} else {
-		aVChatUIManager.initSurfaceView(aVChatUIManager.getVideoAccount());
+		aVChatUIManager.initSmallSurfaceView();
 		aVChatUIManager.onCallStateChange(CallStateEnum.VIDEO);
 	}
 	isCallEstablished = true;
@@ -4138,7 +4160,7 @@ public void onDeviceEvent(String account, int code, String desc) {}
 
 ```
 
-#### 打开音视频设备出错回调
+#### 截图结果回调
 
 用户执行截图后会回调 `onTakeSnapshotResult`。
 
@@ -4158,16 +4180,31 @@ public void onConnectionTypeChanged(int netType) {}
 
 ```
 
-#### 本地音视频录制结束回调
+#### 音视频录制回调
 
-当本地录制音视频发送数据结束时回调，会通知录制文件路径以及结束原因。
+当用户录制音视频结束时回调，会通知录制的用户id和录制文件路径。
 
 ```java
 @Override
-public void onLocalRecordEnd(String[] files, int event) {}
+void onAVRecordingCompletion(String account, String filePath) {}
 
 ```
 
+当用户录制语音结束时回调，会通知录制文件路径。
+
+```java
+@Override
+void onAudioRecordingCompletion(String filePath) {}
+
+```
+
+当存储空间不足时的警告回调,存储空间低于20M时开始出现警告，出现警告时请及时关闭所有的录制服务，当存储空间低于10M时会自动关闭所有的录制。
+
+```java
+@Override
+void onLowStorageSpaceWarning(long availableSize) {}
+
+```
 
 #### 用户第一帧画面通知
 
@@ -4282,12 +4319,21 @@ AVChatManager.getInstance().getParameters(params);
 
 #### 设置视频绘制画布
 
-通过用的<code>account</code>设置用户的视频画布，同时还可以制定画布是否镜像处理，以及相应的缩放模式。
+目前支持两种画布方式，使用内置的 <code>AVChatVideoRender</code> 或者自定义实现 <code>AVChatExternalVideoRender</code>
+
+当设置 <code>AVChatVideoRender</code> 为用户的视频画布时，同时还可以制定画布是否镜像处理，以及相应的缩放模式。
+
+当设置 <code>AVChatExternalVideoRender</code> 为用户的视频画布时，镜像和缩放方式会忽略，用户需要自己去绘制 <code>I420</code> 原始视频数据。
 
 对于交换用户画布的操作，需要先把当前用户的画布解除，通过此接口传入<code>null</code>即可解除，然后再设置新的画布。
 
+如果需要启动开启会话后立即预览本地视频数据，在加入通话前调用 <code>setupLocalVideoRender</code> 即可。
+
 ```java
-AVChatManager.getInstance().setupVideoRender(String account, AVChatVideoRender render, boolean mirror, int scalingType);
+// 设置本地用户视频画布
+AVChatManager.getInstance().setupLocalVideoRender(IVideoRender render, boolean mirror, int scalingType);
+// 设置远端用户视频画布
+AVChatManager.getInstance().setupRemoteVideoRender(String account, IVideoRender render, boolean mirror, int scalingType);
 ```
 
 #### 设置本地语音流静音
@@ -4343,34 +4389,62 @@ AVChatManager.getInstance().switchCamera();
 具体见[请求音视频切换](#请求音视频切换) 和 [音视频切换请求的回应](#音视频切换请求的回应)
 
 
-#### 客户端本地录制发送的音视频数据
+#### 客户端本地录制音视频数据
 
-通话进行中，可以录制自己发送的音频和视频数据, 文件将以MP4格式保存在客户端本地。程序卸载时录制的本地文件也会随程序一并删除。
+通话进行中，可以录制用户的音频和视频数据, 文件将以MP4格式保存在客户端本地, 也可以录制所有用户的语音数据，录音文件格式为wav，文件保存在客户端本地。程序卸载时录制的本地文件也会随程序一并删除。
 
-客户端本地录制接口，通过返回值判断是否调用成功。仅录制发送的音频和视频文件，前后摄像头切换时录制文件可能存在多个。
-
-```java
-// 开始录制
-AVChatManager.getInstance().startLocalRecord(null);
-```
-
-客户端停止本地录制接口, 停止录制后将会通过回调函数返回结果。
+客户端本地开始音视频录制接口，通过返回值判断是否调用成功。录制<code>account</code>的音频和视频文件，前后摄像头切换时录制文件可能存在多个。
 
 ```java
-// 停止录制
-AVChatManager.getInstance().stopLocalRecord(null);
+// 开始录制用户的音视频数据
+AVChatManager.getInstance().startAVRecording(account);
+```
+
+客户端本地停止音视频录制接口, 停止录制后将会通过回调函数返回结果。
+
+```java
+// 停止录制用户的音视频数据
+AVChatManager.getInstance().stopAVRecording(account);
 
 ```
+
+客户端本地开始录音接口，包含所有用户的语音数据，录音文件格式为wav，文件保存在客户端本地。
+
+```java
+// 开始录音
+AVChatManager.getInstance().startAudioRecording();
+```
+
+客户端本地停止录音接口，停止录制后将会通过回调函数返回结果。
+
+```java
+// 停止录音
+AVChatManager.getInstance().stopAudioRecording();
+```
+
 
 录制结束后会通过网络通话状态通知告知。
 
 ```java
 /**
- * 本地录制结束时通知
- * @param files  录制文件，由于不同的摄像头参数不一样可能会存在多个文件。
- * @param event  录制结束原因. 0,正常结束 1,异常结束(存储空间不足等)
+ * 用户音视频数据录制结束
+ *
+ * @param account 用户账号
+ * @param filePath 录制文件路径，当发生视频清晰度等情况时会存在多个MP4文件
 */
-void onRecordEnd(String[] files, int event);
+void onAVRecordingCompletion(String account, String filePath);
+/**
+ * 语音录制结束
+ *
+ * @param filePath 录制语音文件路径
+*/
+void onAudioRecordingCompletion(String filePath);
+/**
+ * 存储空间不足警告，存储空间低于20M时开始出现警告，出现警告时请及时关闭所有的录制服务，当存储空间低于10M时会自动关闭所有的录制功能
+ *
+ * @param availableSize 可用空间
+*/
+void onLowStorageSpaceWarning(long availableSize);
 ```
 
 
@@ -4577,7 +4651,7 @@ AVChatNetDetectCallback#onDetectResult( ... );
 SDK提供简单的互动推流和连麦接口，只需要创建并加入互动房间即可以实现直播推流；连麦者以相同的房间名加入即可以实现实时连麦互动。
 
 
-#### <span id="创建互动直播房间">加入互动直播房间</span>
+#### <span id="创建互动直播房间">创建互动直播房间</span>
 
 通过一个房间名 `roomName` 来创建互动直播房间。
 
@@ -4709,7 +4783,7 @@ AVChatManager.getInstance().switchCamera;
 
 ## <span id="实时会话（白板）">实时会话（白板）</span>
 
-网易云信提供数据通道（TCP/Audio)来满足实时会话的需求，如在线白板教学(参考demo)、文件传输等场景，其中 TCP 通道，可以同时存在多个，语音通道全局只能有一个。
+网易云信提供数据通道（DATA/Audio)来满足实时会话的需求，如在线白板教学(参考demo)、文件传输等场景，其中 DATA 通道，可以同时存在多个，语音通道全局只能有一个。
 
 > 服务器白板录制: 服务器会将用户发送的数据，每个成员录制到一个文件中。云信 SDK 3.2版本之前，录制数据是纯裸数据录制；SDK 3.2 版本开始，针对用户发的每条数据前追加8字节数据，包括32位的长度 和 32位的时间戳。
 
@@ -4733,7 +4807,7 @@ AVChatManager.getInstance().switchCamera;
 
 #### 发起会话/创建数据通道（主叫方）
 
-目前我们提供两种数据通道：TCP 通道和 Audio 通道。通道类型见  `RTSTunnelType`,可选参数见  `RTSOptions`（包含推送内容、发起方附带给其他参与者的内容、是否录制通道数据等）
+目前我们提供两种数据通道：DATA 通道和 Audio 通道。通道类型见  `RTSTunnelType`,可选参数见  `RTSOptions`（包含推送内容、发起方附带给其他参与者的内容、是否录制通道数据等）
 一个会话可以同时创建多个通道，但全局只能有一个语音通道。发起会话时，RTSNotifyOption 中可进行iOS端推送通知自定义配置，同时也包含一个可自定的扩展字段。
 例如：
 
@@ -4741,7 +4815,7 @@ AVChatManager.getInstance().switchCamera;
 
 List<RTSTunnelType> types = new ArrayList<>(1);
 types.add(RTSTunnelType.AUDIO);
-types.add(RTSTunnelType.TCP);
+types.add(RTSTunnelType.DATA);
 
 String pushContent = account + "发起一个会话";
 String extra = "extra_data";
@@ -4955,7 +5029,7 @@ RTSManager.getInstance().close(sessionId, new RTSCallback<Void>() { ... });
 发送数据，需要构造  `RTSTunData`, 需要指定会话 ID，通道类型，对方帐号，数据（字节数组）及数据的长度。如果需要发送数据到所有用户，对方帐号填 null。
 
 ```java
-RTSTunData channelData = new RTSTunData(sessionId, RTSTunnelType.TCP, toAccount, data.getBytes("UTF-8"), data.getBytes().length);
+RTSTunData channelData = new RTSTunData(sessionId, RTSTunnelType.DATA, toAccount, data.getBytes("UTF-8"), data.getBytes().length);
 RTSManager.getInstance().sendData(channelData);
 ```
 
@@ -5003,7 +5077,7 @@ RTSManager.getInstance().setSpeaker(sessionId, true);
 
 ## <span id="多人实时会话">多人实时会话</span>
 
-网易云信提供数据通道（TCP)来满足实时会话的需求，如在线白板教学(参考demo)、文件传输等场景。 多人实时会话内部不包含 Audio 通道，不包含呼叫通知协议等。
+网易云信提供数据通道（DATA)来满足实时会话的需求，如在线白板教学(参考demo)、文件传输等场景。 多人实时会话内部不包含 Audio 通道，不包含呼叫通知协议等。
 
 > 推荐使用多人实时会话来实现各种需要实时数据传输的场景。
 
@@ -5119,7 +5193,7 @@ RTSChannelStateObserver channelStateObserver = new RTSChannelStateObserver() {
 发送数据，需要构造  `RTSTunData`, 需要指定会话 ID，通道类型，对方帐号，数据（字节数组）及数据的长度。如果需要发送数据到所有用户，对方帐号填 null。
 
 ```java
-RTSTunData channelData = new RTSTunData(sessionId, RTSTunnelType.TCP, toAccount, data.getBytes("UTF-8"), data.getBytes().length);
+RTSTunData channelData = new RTSTunData(sessionId, RTSTunnelType.DATA, toAccount, data.getBytes("UTF-8"), data.getBytes().length);
 RTSManager.getInstance().sendData(channelData);
 ```
 
