@@ -261,15 +261,10 @@ libs
 
 ```
 -dontwarn com.netease.**
--dontwarn io.netty.**
 -keep class com.netease.** {*;}
-#如果 netty 使用的官方版本，它中间用到了反射，因此需要 keep。如果使用的是我们提供的版本，则不需要 keep
--keep class io.netty.** {*;}
-
 #如果你使用全文检索插件，需要加入
 -dontwarn org.apache.lucene.**
 -keep class org.apache.lucene.** {*;}
-
 ```
 
 ### <span id="总体接口介绍">总体接口介绍</span>
@@ -3295,7 +3290,7 @@ types.add(SystemMessageType.AddFriend);
 
 // 只查询“添加好友”类型的系统通知
 List<SystemMessage> temps = NIMClient.getService(SystemMessageService.class)
-    .querySystemMessageByType(types, loadOffset, LOAD_MESSAGE_COUNT);
+    .querySystemMessageByTypeBlock(types, loadOffset, LOAD_MESSAGE_COUNT);
 ```
 
 - 设置系统通知状态
@@ -3485,7 +3480,7 @@ NIMClient.getService(MsgServiceObserve.class).observeCustomNotification(new Obse
 }, register);
 ```
 
-如果使用广播接收者的方式，首先需要在 AndroidManifest.xml 文件中声明一个接收器：
+如果使用广播接收者的方式(Android 未来版本会禁止程序后台接收隐式广播，因此不建议开发者使用该方式)，首先需要在 AndroidManifest.xml 文件中声明一个接收器：
 
 ```xml
 <!-- 声明自定义通知的广播接收器，第三方 APP 集成时，action 中的 com.netease.nim.demo 请替换为自己的包名 -->
