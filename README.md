@@ -1733,11 +1733,7 @@ Bitmap getTeamIcon(String tid);
 
 ### <span id="自行实现消息提醒">自行实现消息提醒</span>
 
-如果 SDK 内建的消息提醒不能满足你的需求，你可以关闭 SDK 内置的消息提醒，自行实现。收到新消息时，上层有两种方式得到通知，然后给出通知栏提醒：
-
-1\. 添加消息接收观察者，在观察者的 `onEvent` 中实现状态栏提醒。注册注销方式详见[接收消息](#接收消息)一节。注意：只有 SDK 1.4.0 及以上版本才能使用该方式，1.4.0 以下的版本使用此方式有可能会漏掉通知。
-
-2\. SDK 收到新消息后，还会发送一个广播，在广播接收者的 `onReceive` 中实现自己的状态栏提醒。该广播的 ACTION 为 APP 的包名加上 `NimIntent#ACTION_RECEIVE_MSG`，例如 demo 的为："com.netease.nim.demo.ACTION.RECEIVE\_MSG"。使用这种方式时，开发者需要在 AndroidManifest.xml 文件中注册此广播的接收者，并添加对应的广播权限。
+如果 SDK 内建的消息提醒不能满足你的需求，你可以关闭 SDK 内置的消息提醒，自行实现。添加消息接收观察者，收到新消息时，在观察者的 `onEvent` 中实现状态栏提醒。注册注销方式详见[接收消息](#接收消息)一节。注意：只有 SDK 1.4.0 及以上版本才能使用该方式，1.4.0 以下的版本使用此方式有可能会漏掉通知。
 
 ### <span id="PC/Web端在线配置推送">PC/Web端在线配置推送</span>
 
@@ -2847,6 +2843,10 @@ ChatRoomMessage message = ChatRoomMessageBuilder.createChatRoomTextMessage(
 // 发送消息。如果需要关心发送结果，可设置回调函数。发送完成时，会收到回调。如果失败，会有具体的错误码。
 NIMClient.getService(ChatRoomService.class).sendMessage(message);
 ```
+- 发送聊天室消息时，可以设置配置选项 `CustomChatRoomMessageConfig` ，主要用于设置是否存入历史记录等，目前支持的配置选项有：
+
+1\. skipHistory ：该消息是否要保存到服务器，如果为true，通过ChatRoomService#pullMessageHistory 拉取的结果将不包含该条消息。默认为false。
+
 其它类型的消息发送方式与会话消息类似，请参考[发送消息](#发送消息) 一节。
 
 ### <span id="接收消息">接收消息</span>
@@ -2914,7 +2914,7 @@ NIMClient.getService(ChatRoomService.class).pullMessageHistory(roomId, 0, 10)
  * @param direction 查询方向
  * @return InvocationFuture 可以设置回调函数。回调中返回历史消息列表
  */
-InvocationFuture<List<ChatRoomMessage>> pullMessageHistoryEx(String roomId, 
+InvocationFuture<List<ChatRoomMessage>> pullMessageHistoryEx(String roomId,
     long startTime, int limit, QueryDirectionEnum direction);
 ```
 
@@ -2988,10 +2988,10 @@ Observer<ChatRoomStatusChangeData> onlineStatus
 	= new Observer<ChatRoomStatusChangeData>() {
         @Override
         public void onEvent(ChatRoomStatusChangeData data) {
-            if (data.status == StatusCode.UNLOGIN) {      
+            if (data.status == StatusCode.UNLOGIN) {
                 int errorCode = NIMClient.getService(ChatRoomService.class).getEnterErrorCode(roomId));
                 // 如果遇到错误码13001，13002，13003，403，404，414，表示无法进入聊天室，此时应该调用离开聊天室接口。
-            } 
+            }
             ...
         }
     };
@@ -3238,6 +3238,8 @@ NIMClient.getService(ChatRoomService.class)
 	.dropQueue(roomId)
 	.setCallback(new RequestCallback<Void>() { ... });
 ```
+
+对队列元素进行操作，群成员可以收到相应的通知消息 `ChatRoomMessage`，通知消息的附件类型为 `ChatRoomQueueChangeAttachment` 。附件类型中的 `getChatRoomQueueChangeType` 方法，返回队列变更的类型，支持的类型参见 ` ChatRoomQueueChangeType`。同时，消息附件中还包含，新增，变更或删除的 key 和 value值。
 
 ## <span id="系统通知">系统通知</span>
 
