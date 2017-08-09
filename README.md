@@ -11,6 +11,7 @@
 - 消息检索服务
 - 群组管理/聊天室/会话服务
 - 用户资料、好友关系托管服务
+- 智能对话机器人服务
 
 ## <span id="开发准备">开发准备</span>
 
@@ -600,7 +601,7 @@ NIMClient.getService(AuthServiceObserver.class).observeOnlineStatus(
 }, true);
 ```
 
-网易云通信内置多端登录互踢策略为：移动端( Android 、 iOS )互踢，桌面端( PC 、 Web )互踢，移动端和桌面端共存（ 可以采用上述 kickOtherClient 主动踢下共存的其他端）。
+网易云通信内置多端登录互踢策略为：移动端( Android 、 iOS )互踢，桌面端( PC 、 Mac 、 Web )互踢，移动端和桌面端共存（ 可以采用上述 kickOtherClient 主动踢下共存的其他端）。
 
 如果当前的互踢策略无法满足业务需求的话，可以联系我们取消内置互踢，根据多端登录的回调和当前的设备列表，判断本设备是否需要被踢出。如果需要踢出，直接调用登出接口并在界面上给出相关提示即可。
 
@@ -642,7 +643,7 @@ SDK 提供三种断线重连的策略（重新建立与网易云通信服务器�
 
 SDK 提供一套完善的消息传输管理服务，包括收发消息，存储消息，上传下载附件，管理最近联系人等。
 
-SDK 原生支持发送文本，语音，图片，视频，文件，地理位置，提醒等 7 种类型消息，同时支持用户发送自定义的消息类型。
+SDK 原生支持发送文本，语音，图片，视频，文件，地理位置，提醒，智能对话机器人等 8 种类型消息，同时支持用户发送自定义的消息类型。
 
 网易云通信消息对象均为 `IMMessage`，不同消息类型以 `MsgTypeEnum` 作区分，消息内容根据类型不同也不一样。文本消息最为简单，消息内容就是 `content` 字符串。其他消息类型均带有一个消息附件对象 `MsgAttachment`，该对象在传输时一般序列化为 json 格式字符串。内建的消息附件主要有以下几种：
 - LocationAttachment： 位置消息附件对象类型。
@@ -650,6 +651,7 @@ SDK 原生支持发送文本，语音，图片，视频，文件，地理位置�
 - ImageAttachment：图片消息附件对象类型。
 - AudioAttachment：音频消息附件对象类型。
 - VideoAttachment：视频消息附件对象类型。
+- RobotAttachment：机器人消息附件对象类型。
 - NotificationAttachment：通知类消息附件基类，目前主要用于群类各种操作事件的通知。该类型事件仅由服务器生成和发送，客户端不会生成该类型的消息。
 
 ### <span id="发送消息">发送消息</span>
@@ -715,6 +717,20 @@ IMMessage message = MessageBuilder.createTipMessage(
 	sessionType, // 聊天类型，单聊或群组
 	);
 NIMClient.getService(MsgService.class).sendMessage(message);
+
+// 创建机器人消息
+public static IMMessage createRobotMessage(
+	sessionId,  // 聊天对象ID，普通账号、机器人账号、群ID
+	sessionType, // 会话类型，单聊或群组
+	robotAccount, // 机器人账号
+	text, // 消息显示的文案
+	type, // 机器人消息类型 {@link com.netease.nimlib.sdk.robot.model.RobotMsgType}
+	content, // 消息文本内容
+	target,  // 如果消息类型是{@link com.netease.nimlib.sdk.robot.model.RobotMsgType#LINK}, 必须传入跳转目标
+	params // 如果消息类型是{@link com.netease.nimlib.sdk.robot.model.RobotMsgType#LINK}时，可能需要传入参数
+);
+NIMClient.getService(MsgService.class).sendMessage(message);
+
 ```
 
 - 消息支持扩展字段，扩展字段分为服务器扩展字段（ RemoteExtension ）和本地扩展字段（ LocalExtension ），最大长度1024字节。对于服务器扩展字段，该字段会发送到其他端，而本地扩展字段仅在本地有效。对于这两种扩展字段， SDK 都会存储在数据库中。示例如下：
@@ -1288,7 +1304,7 @@ private Observer<List<MessageReceipt>> messageReceiptObserver = new Observer<Lis
 
 ### <span id="转发消息"> 转发消息 </span>
 
-网易云通信支持消息转发功能，不支持通知消息和音视频消息的转发，其他消息类型均支持。
+网易云通信支持消息转发功能，不支持通知消息和音视频消息以及机器人消息的转发，其他消息类型均支持。
 
 首先，通过 `MessageBuilder` 创建一个待转发的消息，参数为想转发的消息，转发目标的聊天对象id， 转发目标的会话类型。然后，通过 `MsgService#sendMessage` 接口，将消息发送出去。
 
@@ -1735,13 +1751,13 @@ Bitmap getTeamIcon(String tid);
 
 如果 SDK 内建的消息提醒不能满足你的需求，你可以关闭 SDK 内置的消息提醒，自行实现。添加消息接收观察者，收到新消息时，在观察者的 `onEvent` 中实现状态栏提醒。注册注销方式详见[接收消息](#接收消息)一节。注意：只有 SDK 1.4.0 及以上版本才能使用该方式，1.4.0 以下的版本使用此方式有可能会漏掉通知。
 
-### <span id="PC/Web端在线配置推送">PC/Web端在线配置推送</span>
+### <span id="桌面端在线配置推送">桌面端在线配置推送</span>
 
-支持配置桌面端（PC/Web）在线时，移动端是否需要推送。
+支持配置桌面端（PC/Mac/Web）在线时，移动端是否需要推送。
 
 ```java
 /**
-* 设置桌面端(PC/WEB)在线时，移动端是否需要推送
+* 设置桌面端(PC/Mac/WEB)在线时，移动端是否需要推送
 * @param isOpen true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
 * @return InvocationFuture 可以设置回调函数。成功会返回成功信息，错误会返回相应的错误码。
 */
@@ -1762,7 +1778,7 @@ NIMClient.getService(SettingsService.class).isMultiportPushOpen()
 
 鉴于谷歌 GCM 服务无法在国内使用，某些第三方推送平台采用的相互唤醒策略容易被 厂商ROM 或者 XX管家 或者 XX卫士 禁止，小米、华为等推送等采用的系统级长连接则具有明显的优势。统计表明在小米系统上小米推送到达率可以达到 90% 以上。
 
-网易云通信 SDK 在提供端内推送外，还提供端外推送来解决进程在厂商限制下可能无法保活的问题，网易云通信SDK 3.2.0 支持的端外推送有小米推送，网易云通信已经打通推送通道，在网易云通信SDK基础上，开发者可快速接入小米推送。从而在 MIUI 上，网易云通信 SDK 进程与服务器连接断开之后，联系人发来的消息将通过小米推送平台推送给用户，从而提高消息达到率。
+网易云通信 SDK 在提供端内推送外，还提供端外推送来解决进程在厂商限制下可能无法保活的问题，网易云通信SDK 3.2.0 支持的第三方推送有小米推送，4.0.0 版本新加入了华为推送。网易云通信已经打通推送通道，在网易云通信SDK基础上，开发者可快速接入第三方推送，在支持的设备上，网易云通信 SDK 进程与服务器连接断开之后，联系人发来的消息将通过第三方推送平台推送给用户，从而提高消息达到率。
 
 ### <span id="小米推送">小米推送</span>
 
@@ -1860,6 +1876,7 @@ NIMClient.getService(SettingsService.class).isMultiportPushOpen()
 请在 App 启动逻辑中，在 `NIMClient.init()` 之前，调用如下方法在客户端配置小米推送的证书名称 certificate（在网易云通信后台管理系统中配置），`appID` ，`appkey`。可参照网易云通信 Demo。
 
 ```java
+// 此处 certificate 请传入为开发者配置好的小米证书名称
 NIMPushClient.registerMiPush(context, certificate, appID, appKey);
 ```
 
@@ -1926,95 +1943,204 @@ public class MiPushMessageReceiver extends BroadcastReceiver{
 > 
 > - 开发者应确保自身业务中推送的流程和逻辑完整，虽然已经调用了`NIMPushClient.registerMiPush()`，仍然要在合适的时机调用 `MiPushClient.registerPush()` 注册推送。由于网易云通信也会在小米设备上调用此方法，因此可能存在 `MiPushMessageReceiver`中 `onReceiveRegisterResult` 多次回调的情形。此外，小米 SDK 在 5s内重复调用 `MiPushClient.registerPush()` 注册推送会被过滤，因此，请开发者不要在应用生命周期中反复调用注册方法。
 
-#### 4. 常见问题
+### <span id="华为推送">华为推送</span>
+华为推送从新版 HMS 包开始采用了和小米推送相似的系统级连接方案，但是依赖于EMUI 版本和 `华为移动服务`版本，经过大量测试表明，EMUI4.1及以上并同时满足`华为移动服务`版本 20401300 以上时比较稳定能收到通知栏推送消息，和 MIUI 效果一致。因此网易云通信 Android
+SDK 在同时满足这两个条件的设备上才会启动华为推送服务。
 
-1\. 开发者接入小米推送之后，网易云通信只支持对小米设备进行消息推送，其它设备默认不进行推送。
+集成华为推送流程和小米类似，，需要以下几个步骤：
 
-2\. 网易云通信在使用小米推送时，使用通知栏而不是透传提醒模式，因为透传模式要求应用在后台存活，这样消息到达率很低。
+#### 1. 准备工作
 
-3\. 小米推送通知栏展示效果与端内推送展示效果、点击跳转效果存在一些差异，这个问题网易云通信接下来会做统一。
+- 前往[华为推送官网](http://developer.huawei.com/push)注册账号并通过认证，创建应用并获取AppID、AppKey、AppSecret，步骤可参考[华为HMS接入文档](http://developer.huawei.com/consumer/cn/wiki/index.php?title=HMS%E5%BC%80%E5%8F%91%E6%8C%87%E5%AF%BC%E4%B9%A6-%E5%BC%80%E5%8F%91%E5%87%86%E5%A4%87)。
 
-4\. 第三方推送不支持通知栏自定义：铃声、通知栏样式以及提醒模式，旧版设置只对端内推送生效。
+- 下载华为移动服务 HMS 2.4.0.300，将 aar 包导入到工程中，导入方式参考[华为HMS接入文档](http://developer.huawei.com/consumer/cn/wiki/index.php?title=HMS%E5%BC%80%E5%8F%91%E6%8C%87%E5%AF%BC%E4%B9%A6-%E5%BC%80%E5%8F%91%E5%87%86%E5%A4%87)。（与小米推送类似，网易云通信IM SDK 中并不包含华为推送 SDK，开发者需要自行下载并导入到工程中）。
 
-5\. 若用户不需要接入小米推送，则不做任何配置，将不受影响。
+- 前往网易云通信后台管理中心，创建华为推送证书。首先选择需要接入推送的应用，点击证书管理：
 
-6\. 在小米设备上，若网络畅通、账号登陆成功、消息收发正常条件下，若开发者若收不到推送，可从以下几个方面进行排查，
-首先检查 AndroidManifest 配置是否正确，包括权限、Service、BroadcastReceiver，网易云通信SDK对 AndroidManifest 做了检查，并有日志记录；其次检查是否关闭了消息提醒以及设置了免打扰等，
-如果仍然不能解决，可以求助网易云通信技术支持。
+![](http://yx-web.nos.netease.com/webdoc/im/android/certificates.jpg)
 
+在Android推送证书一栏选择添加证书，随后在弹出框中填写对应的信息，其中应用包名填写开发者 Android 应用的包名，AppSecret 填写第一步在华为官网创建应用所获取的 AppSecret，请开发者谨记证书名，这个会在 SDK初始化推送的时候使用。这个过程和小米类似。
 
-### <span id="推送消息提醒定制">推送消息提醒定制</span>
+#### 2. 接入流程
 
-网易云通信消息 `IMMessage` 提供了消息提醒定制（可查看[发送消息](#发送消息)这一节），这个功能在第三方推送中也同样支持，自定义的消息提醒包含消息推送文案以及自定义字段。自定义的消息推送文案优先级高于默认的推送文案，而自定义的字段 `payload` 也会跟随小米推送消息携带过来，若开发者需要处理`payload`，可以实现 `MixPushMessageHandler` 接口
+与接入小米推送类似，快速接入华为推送只需要2步，详细可参考[华为推送接入文档](http://developer.huawei.com/consumer/cn/wiki/index.php?title=HMS%E5%BC%80%E5%8F%91%E6%8C%87%E5%AF%BC%E4%B9%A6-PUSH%E6%9C%8D%E5%8A%A1%E6%8E%A5%E5%8F%A3)。
 
-自定义推送文案及自定义推送属性通过 IMMessage#setPushContent 及 IMMessage#setPushPayload 来设置。其中 pushContent 决定接收方通知栏展示的内容； pushPayload 可以在接受方点击通知栏之后获得，开发者可以通过它实现消息跳转等功能。
+1\. AndroidManifest.xml声明
+
+首先，在权限配置里面，有一处需要填写appid，有1处需要改成开发者自己的 APP 包名。
+
+```xml
+<meta-data
+    android:name="com.huawei.hms.client.appid"
+    <!-- XXXX替换为华为推送平台配置的应用appid -->
+    android:value="XXXX" />
+
+<provider
+    android:name="com.huawei.hms.update.provider.UpdateProvider"
+    <!-- XXXX替换为自己的包名 -->
+    android:authorities="XXXX.hms.update.provider"
+    android:exported="false"
+    android:grantUriPermissions="true"></provider>
+```
+
+下面这些配置直接拷贝到AndroidManifest.xml。
+
+```xml
+<!-- 云信华为推送消息广播 -->
+<receiver android:name="com.netease.nimlib.mixpush.hw.HWPushReceiver">
+    <intent-filter android:priority="0x7fffffff">
+        <action android:name="com.huawei.android.push.intent.REGISTRATION" />
+        <action android:name="com.huawei.android.push.intent.RECEIVE" />
+        <action android:name="com.huawei.android.push.intent.CLICK" />
+        <action android:name="com.huawei.intent.action.PUSH_STATE" />
+    </intent-filter>
+</receiver>
+
+<!-- 兼容性广播 -->
+<receiver android:name="com.huawei.hms.support.api.push.PushEventReceiver">
+    <intent-filter>
+        <!-- 接收通道发来的通知栏消息，兼容老版本Push -->
+        <action android:name="com.huawei.intent.action.PUSH" />
+    </intent-filter>
+</receiver>
+```
+
+2\. 配置华为推送证书
+
+请在 App 启动逻辑中，在 `NIMClient.init()` 之前，调用如下方法在客户端配置华为推送的证书名称 certificate（在网易云通信后台管理系统中配置），可参照网易云通信 Demo。
+
+```java
+// 此处 certificate 请传入开发者自身的华为证书名称
+NIMPushClient.registerHWPush(context, certificate);
+```
+
+如果构建 APP 时有使用代码混淆，需要在proguard.cfg中加入
+
+```
+-ignorewarning
+-keepattributes *Annotation*
+-keepattributes Exceptions
+-keepattributes Signature
+# hmscore-support: remote transport
+-keep class * extends com.huawei.hms.core.aidl.IMessageEntity { *; }
+# hmscore-support: remote transport
+-keepclasseswithmembers class * implements com.huawei.hms.support.api.transport.DatagramTransport {
+<init>(...); }
+# manifest: provider for updates
+-keep public class com.huawei.hms.update.provider.UpdateProvider { public *; protected *; }
+```
+
+至此，华为推送接入完成，现在可以在满足条件的华为设备上进行消息推送测试。
+
+#### 3. 华为推送兼容性
+
+若开发者自身业务体系中，也需要接入华为推送，则需要考虑开发者自身业务体系的华为推送与网易云通信消息的华为推送兼容
+需要做好以下2点，其余配置、逻辑都不需要修改。
+
+- 对于华为推送，为了接收推送消息，华为 SDK 要求开发者自定义一个继承自 `PushReceiver`类的 `BroadcastReceiver` ，并注册到 `AndroidManifest.xml`。由于同时注册多个继承自 `PushReceiver ` 的 `BroadcastReceiver` 会存在收不到消息的情况，要保证开发者自身业务体系的华为推送与网易云通信消息的华为推送兼容，开发者需要将自身的华为推送广播接收器，从继承 `PushReceiver ` 改为继承 `HWPushMessageReceiver`。开发者自行处理自身体系的推送消息，网易云通信不做处理。
 
 ```java
 /**
- * 第三方推送消息回调接口，用户如果需要自行处理网易云通信的第三方推送消息，则可实现该接口，并注册到{@link NIMPushClient}
+ *
+ * 以下这些方法运行在非 UI 线程中, 与华为 SDK 的 PushReceiver 方法一一对应。
+ * 当开发者自身也接入华为推送，则应将继承 PushReceiver 改为继承 HWPushMessageReceiver，其他不变
+ */
+
+public class HWPushMessageReceiver extends BroadcastReceiver {
+
+    @Override
+    public final void onReceive(Context context, Intent intent) {
+    }
+
+    public void onToken(Context context, String token, Bundle extras) {
+    }
+
+    public boolean onPushMsg(Context context, byte[] raw, Bundle bundle) {
+        return false;
+    }
+
+    public void onEvent(Context context, PushReceiver.Event event, Bundle extras) {
+    }
+
+    public void onPushState(Context context, boolean pushState) {
+    }
+}
+```
+
+- 在将广播接收器改为继承 `HWPushMessageReceiver` 之后，将该广播在 `AndroidManifest` 中配置如下，开发者只需将广播名称 `Receiver` 替换成自身的广播名。此外，请不要为此 Receiver 配置 `priority`。
+
+```xml
+<receiver android:name=".Receiver">
+    <intent-filter>
+        <action android:name="com.huawei.android.push.intent.REGISTRATION" />
+        <action android:name="com.huawei.android.push.intent.RECEIVE" />
+        <action android:name="com.huawei.android.push.intent.CLICK" />
+        <action android:name="com.huawei.intent.action.PUSH_STATE" />
+    </intent-filter>
+</receiver>
+``` 
+
+> 注意：
+> 
+> - 避免在逻辑中调用注销推送方法，即 ` MiPushClient.unregisterPush()`，即便是需要设置关闭推送。 
+> 
+> - 开发者应确保自身业务中推送的流程和逻辑完整，虽然已经调用了`NIMPushClient.registerHWPush()`，仍然要在合适的时机注册华为推送。
+
+### <span id="第三方推送自定义接口">第三方推送自定义接口</span>
+
+对于普通的使用场景，上述接口和功能已经可以满足，为了部分特殊场景的扩展性，网易云通信第三方提供了一些扩展接口，开发者可以依靠这些接口实现一些自定义的推送服务。
+
+扩展接口由 `MixPushMessageHandler` 提供
+
+```java
+/**
+ * 第三方推送消息回调接口，用户如果需要自行处理云信的第三方推送消息，则可实现该接口，并注册到{@link NIMPushClient}
  */
 
 public interface MixPushMessageHandler {
 
     /**
-     * 第三方推送通知栏点击之后的回调方法
+     * 第三方推送通知栏点击之后的回调方法，（对于华为推送，这个方法并不能保证一定会回调）
+     *
      * @param context
      * @param payload IMessage 中的用户设置的自定义pushPayload {@link com.netease.nimlib.sdk.msg.model.IMMessage}
      * @return true 表示开发者自行处理第三方推送通知栏点击事件，SDK将不再处理; false 表示仍然使用SDK提供默认的点击后的跳转
      */
-    boolean onNotificationClicked(Context context, Map<String,String> payload);
+    boolean onNotificationClicked(Context context, Map<String, String> payload);
 
+    /**
+     * 华为推送通知清除接口，利用该接口开发者可以自定义清除华为推送通知。
+     * 因为华为推送 SDK 没有清除通知栏接口，对于华为推送消息，云信 SDK 默认调用了清除应用所有通知栏的接口。
+     * 如果开发者需要自定义，可以使用这个接口做清除处理
+     *
+     * @return 返回true表示开发者处理了清除工作，云信 SDK 不再处理，返回false 则相反
+     */
+    boolean cleanHuaWeiNotifications();
 }
 ```
 
-并在 `NIMPushClient.registerMiPush()` 之后调用 
+开发者需要实现 `MixPushMessageHandler`，并在 `NIMPushClient.registerMiPush()` 之后调用下面方法注册该接口。
 
 ```java
 NIMPushClient.registerMixPushMessageHandler(mixPushMessageHandler);
 ```
 
-注册该接口，当有网易云通信消息通过第三方推送到用户，用户点击通知栏之后便回调 `onNotificationClicked` 方法。
+下面分别讲述具体接口的功能以及示例。
 
-自定义推送文案以及自定义推送属性由消息发送端设置，3.2.0 版本中 UIKit 中新增了 `CustomPushContentProvider` 接口
+- onNotificationClicked：自定义处理推送通知点击事件。
 
-```java
-/**
- * 用户自定义推送 content 以及 payload 的接口
- */
+当消息通过第三方推送到用户，用户点击通知栏之后便回调 `onNotificationClicked` 方法（对于华为推送，该方法偶尔会失效，点击通知栏之后不能保证一定回调此方法）。网易云通信消息 `IMMessage` 提供了消息提醒定制（可查看[发送消息](#发送消息)这一节），这个功能在第三方推送中也同样支持，自定义的消息提醒包含消息推送文案以及自定义字段。自定义的消息推送文案优先级高于默认的推送文案，而自定义的字段 `payload` 也会跟随第三方推送消息携带过来。依靠此回调方法用户可以处理推送传递下来的`payload`字段。
 
-public interface CustomPushContentProvider {
+- cleanHuaWeiNotifications 华为推送清除通知栏接口
 
-    /**
-     * 在消息发出去之前，回调此方法，用户需实现自定义的推送文案
-     *
-     * @param message 网易云通信消息
-     */
-    String getPushContent(IMMessage message);
-
-    /**
-     * 在消息发出去之前，回调此方法，用户需实现自定义的推送payload，它可以被消息接受者在通知栏点击之后得到
-     *
-     * @param message 网易云通信消息
-     */
-    Map<String, Object> getPushPayload(IMMessage message);
-
-}
-```
-
-开发者可以实现该接口，在`getPushContent()` 返回自定义推送文案，`getPushPayload()` 方法返回自定义的字段，在 UIKit 初始化之后设置
-
-```java
-NimUIKit.CustomPushContentProvider(pushContentProvider);
-```
-
-在所有消息发送之前，都会先调用这两个方法来设置消息的自定义推送文案以及自定义字段。
-
-Demo 中给出了实现上述两个接口的示例，由于点击第三方推送通知栏默认跳转到会话列表界面，Demo 中的示例依靠自定义字段 `payload` 实现了跳转至会话界面的功能，详细参考 `DemoMixPushMessageHandler`，`DemoPushContentProvider`。
-
-> 注意，由于消息的自定义推送文案以及字段由消息发送端设置，若开发者要使用该功能，请保证各端（IOS, Android, PC, Web）在发送消息时做到统一。
+因为华为推送 SDK 没有清除通知栏接口，对于华为推送消息，云信 SDK 默认调用了清除应用所有通知栏的接口。如果开发者有些通知栏不希望被清除，可以使用这个接口自定义处理，例如可以先将这些通知缓存，在调用清除所有通知接口之后，再将缓存的通知弹出。
+	
+> 注意，由于消息的自定义推送文案以及字段由消息发送端设置，若开发者要使用该功能，请保证各端（IOS, Android, PC, Mac, Web）在发送消息时做到统一。
 >
 > 此外，对于小米推送，`payload` 内容会通过小米推送消息 extra 字段传输，而 extra 字段可以实现一些自定义的功能，如自定义通知栏铃声的URI、通知栏的点击行为等等（小米推送 extra 字段选项请参照小米推送Android 以及服务端文档）。
 > 因此使用 `payload` 能间接达到设置这些自定义推送选项。由于小米SDK extra 字段限制，请各端消息发送 `payload` 字段 key-value 组合不要超过 8 对（若超出可使用嵌套 Map），不要使用 "nim" 作为key，整体 payload 长度不超过1000。
+> 
+> 对于华为推送，因为点击通知栏不一定会有方法回调，所以可能导致点击推送通知栏启动应用无法收到 `payload` 的情况。
 
 
 ### <span id="推送设置">推送设置</span>
@@ -2060,6 +2186,23 @@ InvocationFuture<Void> setPushNoDisturbConfig(boolean isOpen, String startTime, 
 ```
 
 在 3.2.0 版本之前，设置的消息免打扰对本地消息提醒有效，若在3.2.0接入了推送，为了确保设置统一，应该在用户登陆同步完成后，将用户设置的免打扰时间同步设置推送免打扰，参考 Demo 中 `MainActivity` 的做法。
+
+
+### <span id="常见问题">常见问题</span>
+
+1\. 开发者接入小米推送之后，网易云通信只支持对小米设备进行消息推送，其它设备默认不进行推送；对于华为推送，需同时满足设备 EMUI4.1(包括)以上以及华为移动服务 20401300(包括)以上版本会进行消息推送，其他设备默认不进行推送。
+
+2\. 网易云通信在使用小米、华为推送时，使用通知栏而不是透传提醒模式，因为透传模式要求应用在后台存活，这样消息到达率很低。
+
+3\. 第三方推送通知栏展示效果与端内推送展示效果、点击跳转效果存在一些差异，这个问题网易云通信端内推送做了统一，开发者可以在初始化的时候选择启用展开、折叠样式的通知栏。
+
+4\. 第三方推送不支持通知栏自定义：铃声、通知栏样式以及提醒模式，旧版设置只对端内推送生效。
+
+5\. 若用户不需要接入小米、华为推送，则不做任何配置，将不受影响。
+
+6\. 在满足第三方推送的设备上，若网络畅通、账号登陆成功、消息收发正常条件下，若开发者若收不到推送，可从以下几个方面进行排查，
+首先检查 AndroidManifest 配置是否正确，包括权限、Service、BroadcastReceiver，网易云通信SDK对 AndroidManifest 做了检查，并有日志记录；其次检查是否关闭了消息提醒以及设置了免打扰等，
+如果仍然不能解决，可以求助网易云通信技术支持。
 
 
 ## <span id="历史记录">历史记录</span>
@@ -2733,7 +2876,7 @@ NIMClient.getService(TeamService.class).searchTeam(teamId)
 
 1、打开强推开关，即使关闭消息提醒，依然能收到通知栏提醒，但是声音和震动跟随本机设置。
 
-2、打开强推开关，即使设置了 PC/Web 端在线时不推送，依然能收到通知栏提醒。
+2、打开强推开关，即使设置了 桌面端在线时不推送，依然能收到通知栏提醒。
 
 3、无论是否打开强推开关，设置了强推通知文本内容并且位于强推列表中的成员（若强推列表为 null，则表示本群所有成员），收到的消息提醒均显示强推通知文本。
 
@@ -3877,6 +4020,88 @@ NIMClient.getService(EventSubscribeServiceObserver.class).observeEventChanged(ne
             }
         }, true);
 ```
+
+## <span id="智能对话机器人">智能对话机器人</span>
+
+4.0.0 版本新增智能对话机器人功能，智能对话机器人解决方案依托网易IM即时通讯、语音识别、语义理解等服务，为开发者提供人机交互方式API/SDK、语音识别、意图识别、知识库配置、动态接口等功能，可以在应用IM内快速集成场景丰富的智能对话机器人。
+
+区别于开发者业务后台自行设定的机器人，网易波特中配置的机器人，类似网易精灵、小黄鸡这种通过配置知识库，与用户进行交流问答的智能对话机器人。开发者可以在 [网易波特 服务](http://sw.bot.163.com) 开通机器人服务。
+
+机器人和云信账号是有绑定关系的，一个机器人账号对应了一个云信 id ，两者互相独立 ， 云信内部负责维护对应关系。机器人所对应的云信用户不会在线，也不应该和其他正常用户有用户关系，如加好友，拉黑等。
+
+智能对话机器人消息属于云信内置基础消息类型中的一种，详细请参考 [发送消息](#发送消息) 章节。
+
+### <span id="机器人信息">机器人信息</span>
+
+- 获取机器人信息
+
+机器人信息使用 `NimRobotInfo` 表示，继承至 `UserInfo`，登录成功之后机器人信息会同步至本地，开发者使用
+RobotServiceObserve#observeRobotChangedNotify 监听机器人增、减变化通知。
+
+```java
+private Observer<RobotChangedNotify> robotChangedNotifyObserver = new Observer<RobotChangedNotify>() {
+    @Override
+    public void onEvent(RobotChangedNotify robotChangedNotify) {
+        List<NimRobotInfo> addedOrUpdatedRobots = robotChangedNotify.getAddedOrUpdatedRobots();
+        List<String> addedOrUpdateRobotAccounts = new ArrayList<>(addedOrUpdatedRobots.size());
+        List<String> deletedRobotAccounts = robotChangedNotify.getDeletedRobots();
+
+        String account;
+        for (NimRobotInfo f : addedOrUpdatedRobots) {
+            account = f.getAccount();
+            robotMap.put(account, f);
+            addedOrUpdateRobotAccounts.add(account);
+        }
+
+        // 通知机器人变更
+        if (!addedOrUpdateRobotAccounts.isEmpty()) {
+            // log
+            DataCacheManager.Log(addedOrUpdateRobotAccounts, "on add robot", UIKitLogTag.ROBOT_CACHE);
+        }
+
+        // 处理被删除的机器人
+        if (!deletedRobotAccounts.isEmpty()) {
+            // update cache
+            for (String a : deletedRobotAccounts) {
+                robotMap.remove(a);
+            }
+        }
+    }
+};
+
+NIMClient.getService(RobotServiceObserve.class).observeRobotChangedNotify(robotChangedNotifyObserver, register);
+```
+此外使用 RobotService#getAllRobots 获取本地数据库的所有机器人信息。
+
+```java
+List<NimRobotInfo> robots = NIMClient.getService(RobotService.class).getAllRobots();
+```
+
+### <span id="机器人消息">机器人消息</span>
+
+- 机器人对话流程
+
+机器人类型消息分为机器人上行、下行消息，分别表示发送给机器人和机器人下发的消息。客户端使用 MessageBuilder#createRobotMessage 构建上行消息并调用消息发送接口，收到机器人下行消息之后通过，机器人消息附件 RobotAttachment 中可以获取机器人回复内容。
+
+```java
+RobotAttachment attachment = (RobotAttachment) message.getAttachment();
+
+if (attachment.isRobotSend()) {
+    // 下行消息
+    RobotResponseContent content =  new RobotResponseContent(attachment.getResponse()));
+}
+```
+
+- 机器人回复内容
+
+机器人内容格式规范可参考 [机器人消息体模板说明](/docs/product/IM即时通讯/机器人消息体模板说明)。
+
+开发者调用 RobotAttachment#getResponse 方法返回机器人回复内容，再将机器人返回内容解析成为视图展示，UiKit组件提供了解析模板，开发者可以参考 RobotResponseContent、RobotContentLinearLayout 的实现。
+
+```java
+RobotResponseContent content = new RobotResponseContent(attachment.getResponse()));
+```
+RobotContentLinearLayout 负责将 RobotResponseContent 解析为视图。
 
 ## <span id="容易混淆的概念">容易混淆的概念</span>
 
