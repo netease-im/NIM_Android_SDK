@@ -418,6 +418,27 @@ public class NimApplication extends Application {
 }
 ```
 
+- SDKOptions 参数说明
+
+| 参数      |     说明 |
+| :-------- | :--------|
+| appKey | 设置云信SDK的appKey。appKey还可以通过在AndroidManifest文件中，通过meta-data的方式设置。|
+| statusBarNotificationConfig | 默认为null，SDK不提供状态栏提醒功能，由客户APP自行实现|
+| userInfoProvider | 用户信息提供者，目前主要用于通知栏显示用户昵称和头像|
+| messageNotifierCustomization | 通知栏提醒文案定制|
+| sdkStorageRootPath | 外置存储根目录,用于存放多媒体消息文件|
+| databaseEncryptKey | 数据库加密秘钥，用于消息数据库加密|
+| preloadAttach | 是否需要SDK自动预加载多媒体消息的附件|
+| thumbnailSize | 消息缩略图的尺寸|
+| sessionReadAck | 是否开启会话已读多端同步|
+| improveSDKProcessPriority | 是否提高SDK进程优先级（默认提高，可以降低SDK核心进程被系统回收的概率）|
+| serverConfig | 配置专属服务器的地址|
+| preLoadServers | 预加载服务，默认true，不建议设置为false，预加载连接可以优化登陆流程|
+| teamNotificationMessageMarkUnread | 群通知消息是否计入未读数，默认不计入未读|
+| useXLog | 使用性能更好的SDK日志模式。默认使用普通日志模式。|
+| enableSDKBackgroundReconnectStrategy | 是否开启SDK后台自动断网重连策略。默认开启|
+| animatedImageThumbnailEnabled | 开启对动图缩略图的支持，默认为 NO，截取第一帧|
+
 > 特别提醒：SDK 的初始化方法必须在主进程中调用，在非主进程中初始化无效。请在主进程中调用 SDK XXXService 提供的方法，在主进程中注册 XXXServiceObserver
 的观察者（有事件变更，会回调给主进程的主线程）。如果你的模块运行在非主进程，请自行实现主进程与非主进程的通信（Binder/AIDL/BroadcastReceiver等IPC）将主进程回调或监听返回的数据传递给非主进程。
 
@@ -608,25 +629,27 @@ Observer<List<OnlineClient>> clientsObserver = new Observer<List<OnlineClient>>(
         @Override
         public void onEvent(List<OnlineClient> onlineClients) {
             if (onlineClients == null || onlineClients.size() == 0) {
-                OnlineClient client = onlineClients.get(0);
-                switch (client.getClientType()) {
-                    case ClientType.Windows:
-                    // PC端
-	                    break；
-                    case ClientType.MAC:
-                    // MAC端
-                        break;
-                    case ClientType.Web:
-                    // Web端
-                        break;
-                    case ClientType.iOS:
-                    // IOS端
-	                    break；
-                    case ClientType.Android:
-                    // Android端
-                        break;
-                    default:
-                        break;
+                return;
+            }
+            OnlineClient client = onlineClients.get(0);
+            switch (client.getClientType()) {
+                case ClientType.Windows:
+                // PC端
+                    break；
+                case ClientType.MAC:
+                // MAC端
+                    break;
+                case ClientType.Web:
+                // Web端
+                    break;
+                case ClientType.iOS:
+                // IOS端
+                    break；
+                case ClientType.Android:
+                // Android端
+                    break;
+                default:
+                    break;
             }
         }
     };
@@ -1818,7 +1841,7 @@ NIMClient.getService(MsgService.class).sendMessage(textMessage, false);
 
 - API 介绍
 
-通过添加消息接收观察者 `ChatRoomServiceObserver#observeReceiveMessage`，在有新消息到达时，第三方 APP 就可以接收到通知。该代码的典型场景为消息对话界面，在界面 `onCreate` 里注册消息接收观察者，在 `onDestroy` 中注销观察者。在收到消息时，判断是否是当前聊天对象的消息，如果是，加入到列表中显示。
+通过添加消息接收观察者 `MsgServiceObserve#observeReceiveMessage`，在有新消息到达时，第三方 APP 就可以接收到通知。该代码的典型场景为消息对话界面，在界面 `onCreate` 里注册消息接收观察者，在 `onDestroy` 中注销观察者。在收到消息时，判断是否是当前聊天对象的消息，如果是，加入到列表中显示。
 
 - API 原型
 
@@ -2245,6 +2268,49 @@ Observer<IMMessage> revokeMessageObserver = new Observer<IMMessage>() {
 
 NIMClient.getService(MsgServiceObserve.class).observeRevokeMessage(revokeMessageObserver, true);
 ```
+
+### <span id="监听全员广播消息">监听全员广播消息</span>
+
+网易云通信支持全员广播消息，支持离线，没有推送。广播消息由服务端接口发起，对应用内的所有用户发送一条广播。客户端不支持发送， SDK 收到广播之后直接往上层通知，不存储。建议开发者注册观察者与应用生命周期一致。
+
+- API 原型
+
+```java
+/**
+ * 注册/注销全员广播消息观察者
+ * @param observer 观察者，参数全员广播消息。
+ * @param register true为注册，false为注销
+ */
+public void observeBroadcastMessage(Observer<BroadcastMessage> observer, boolean register);
+```
+
+- BroadcastMessage 参数说明
+
+| 参数      |     说明 |
+| :-------- | :--------|
+| id    |   广播id |
+| fromAccount | 广播发送者账号 |
+| time | 广播消息时间戳|
+| content | 广播消息内容|
+
+- 示例
+
+```java
+/**
+ * 注册云信全服广播接收器
+ *
+ * @param register
+ */
+private void registerNimBroadcastMessage(boolean register) {
+    NIMClient.getService(MsgServiceObserve.class).observeBroadcastMessage(new Observer<BroadcastMessage>() {
+        @Override
+        public void onEvent(BroadcastMessage broadcastMessage) {
+            // 处理
+        }
+    }, register);
+}
+```
+
 
 
 ## <span id="消息全文检索">消息全文检索</span>
@@ -2388,21 +2454,21 @@ public void clearCache();
 
 群聊消息收发和管理和单人聊天完全相同，仅在 `SessionTypeEnum` 上做了区分，详见[消息收发](#消息收发)节。
 
-#### <span id="关闭群聊消息提醒">关闭群聊消息提醒</span>
+#### <span id="设置群聊消息提醒类型">设置群聊消息提醒类型</span>
 
-群聊消息提醒可以单独打开或关闭，关闭提醒之后，用户仍然会收到这个群的消息。如果开发者使用的是网易云通信内建的消息提醒，用户收到新消息后不会再用通知栏提醒，如果用户使用的 iOS 客户端，则他将收不到该群聊消息的 APNS 推送。如果开发者自行实现状态栏提醒，可通过 `Team` 的 `mute` 接口获取提醒配置，并决定是不是要显示通知。群聊消息提醒设置可以漫游。
+可以对某个群设置消息提醒类型，群消息提醒分为全部提醒、仅管理员消息提醒、全部不提醒等三种，默认为全部提醒，普通群不支持设置仅管理员消息提醒。设置之后如果新消息不满足消息提醒的条件，用户仍然会收到这个消息，如果开发者使用的是网易云通信内建的消息提醒，用户收到新消息后不会再用通知栏提醒，如果用户使用的 iOS 客户端，则他将收不到该群聊消息的 APNS 推送。如果开发者自行实现状态栏提醒，可通过 `Team` 的 `getMessageNotifyType` 接口获取提醒配置，并决定是不是要显示通知。群聊消息提醒设置可以漫游。
 
 - API 原型
 
-```
+```java
 /**
- * 打开/关闭指定群的消息提醒。关闭消息提醒后，该群收到新消息后将不会有通知栏提醒
+ * 设置指定群消息通知类型
  *
  * @param teamId 群组ID
- * @param mute   若为true：关闭消息提醒，false：打开消息提醒
+ * @param notifyType   通知类型枚举
  * @return InvocationFuture 可以设置回调函数，监听操作结果
  */
-InvocationFuture<Void> muteTeam(String teamId, boolean mute);
+InvocationFuture<Void> muteTeam(String teamId, TeamMessageNotifyTypeEnum notifyType);
 ```
 
 - 参数说明
@@ -2410,21 +2476,23 @@ InvocationFuture<Void> muteTeam(String teamId, boolean mute);
 |参数|说明|
 |-|-|
 |teamId |群组ID|
-|mute   |若为 true：关闭消息提醒，false：打开消息提醒|
+|TeamMessageNotifyTypeEnum   |消息提醒类型枚举，分别为全部提醒、仅管理员消息提醒、全部不提醒|
 
 - 示例
 
-```
-// 以关闭消息提醒为例
-NIMClient.getService(TeamService.class).muteTeam(teamId, true).setCallback(new RequestCallback<Void>() {
+```java
+// 以设置 “仅管理员消息提醒” 为例
+
+TeamMessageNotifyTypeEnum type = TeamMessageNotifyTypeEnum.Manager;
+NIMClient.getService(TeamService.class).muteTeam(teamId, type).setCallback(new RequestCallback<Void>() {
     @Override
     public void onSuccess(Void param) {
-        // 关闭群聊消息提醒成功
+        // 设置成功
     }
 
     @Override
     public void onFailed(int code) {
-        // 关闭群聊消息提醒失败
+        // 设置失败
     }
 
     @Override
@@ -2544,7 +2612,8 @@ Team函数说明：
 |VerifyTypeEnum	|getVerifyType()|获取申请加入群组时的验证类型|
 |boolean	|isAllMute()|是否群全员禁言|
 |boolean	|isMyTeam()|获取自己是否在这个群里|
-|boolean	|mute()|获取这个群收到新消息时要不要提醒的设置。|
+|boolean    |mute()|获取这个群收到新消息时要不要提醒的设置，废弃，使用getMessageNotifyType()替代|
+|TeamMessageNotifyTypeEnum|getMessageNotifyType()|获取当前账号在此群收到消息之后提醒的类型|
 |void	|setExtension(extension)|设置群组扩展配置。|
 
 - 示例
@@ -2656,7 +2725,7 @@ List<Team> teams = NIMClient.getService(TeamService.class).queryTeamListByTypeBl
  *
  * @return InvocationFuture 可以设置回调函数，如果成功，参数为创建的群组资料
  */
-InvocationFuture<Team> createTeam(Map<TeamFieldEnum, Serializable> fields, TeamTypeEnum type, String postscript, List<String> members);
+InvocationFuture<CreateTeamResult> createTeam(Map<TeamFieldEnum, Serializable> fields, TeamTypeEnum type, String postscript, List<String> members);
 ```
 
 - 参数说明
@@ -2667,6 +2736,13 @@ InvocationFuture<Team> createTeam(Map<TeamFieldEnum, Serializable> fields, TeamT
 |type |要创建的群组类型|
 |postscript | 邀请入群的附言。如果是创建临时群，该参数无效|
 |members | 邀请加入的成员帐号列表|
+
+`CreateTeamResult` 说明
+
+|参数|说明|
+|:---|:---|
+|team | 创建成功后返回的team 对象|
+|failedInviteAccounts |被邀请成员中群组数量已达上限的成员列表|
 
 - 示例
 
@@ -2800,7 +2876,7 @@ NIMClient.getService(TeamService.class).rejectApply(teamId, account, "您已被�
 
 #### 邀请加入群组
 
-普通群所有人都可以拉人入群，SDK 2.4.0之前版本高级群仅管理员和拥有者可以邀请人入群， SDK 2.4.0及以后版本高级群在创建时可以设置群邀请模式，支持仅管理员或者所有人均可拉人入群。
+普通群所有人都可以拉人入群，SDK 2.4.0之前版本高级群仅管理员和拥有者可以邀请人入群， SDK 2.4.0及以后版本高级群在创建时可以设置群邀请模式，支持仅管理员或者所有人均可拉人入群。如果在被邀请成员中存在成员的群组数量已达上限，则会返回这部分失败成员的账号。
 
 - API 原型
 
@@ -2810,7 +2886,7 @@ NIMClient.getService(TeamService.class).rejectApply(teamId, account, "您已被�
  *
  * @return InvocationFuture 可以设置回调函数，监听操作结果
  */
-InvocationFuture<Void> addMembers(String teamId, List<String> accounts);
+InvocationFuture<List<String>> addMembers(String teamId, List<String> accounts);
 ```
 
 - 参数说明
@@ -3623,7 +3699,8 @@ public void observeTeamUpdate(Observer<List<Team>> observer, boolean register);
 |VerifyTypeEnum	|getVerifyType()|获取申请加入群组时的验证类型|
 |boolean	|isAllMute()|是否群全员禁言|
 |boolean	|isMyTeam()|获取自己是否在这个群里|
-|boolean	|mute()|获取这个群收到新消息时要不要提醒的设置|
+|boolean	|mute()|获取这个群收到新消息时要不要提醒的设置，废弃，使用getMessageNotifyType()替代|
+|TeamMessageNotifyTypeEnum|getMessageNotifyType()|获取当前账号在此群收到消息之后提醒的类型|
 |void	|setExtension(String extension)|设置群组扩展配置|
 
 - 示例
@@ -3825,6 +3902,15 @@ NIMClient.getService(TeamServiceObserver.class).observeMemberRemove(memberRemove
 
 ### <span id="聊天室功能概述">聊天室功能概述</span>
 
+聊天室分类：
+
+聊天室分为独立模式和非独立模式。独立模式不依赖 IM 登录，非独立模式必须依赖 IM 登录。其中，独立模式又可以分为匿名模式登录和非匿名模式登录。
+
+|聊天室分类|细分|说明|
+|:---|:---|:---|
+|独立模式|匿名模式/非匿名模式|不依赖 IM 登录|
+|非独立模式||依赖 IM 登录|
+
 聊天室模型特点：
 
 - 进入聊天室时必须建立新的连接，退出聊天室或者被踢会断开连接，在聊天室中掉线会有自动重连，开发者需要监听聊天室连接状态来做出正确的界面表现。
@@ -3833,9 +3919,11 @@ NIMClient.getService(TeamServiceObserver.class).observeMemberRemove(memberRemove
 - 支持同时进入多个聊天室，会建立多个连接。
 - 不支持多端进入同一个聊天室，后进入的客户端会将前一个踢掉。
 - 断开聊天室连接后，服务器不会再推送该聊天室的消息给此用户。
-- 聊天室成员分固定成员（固定成员有四种类型，分别是创建者,管理员,普通用户,受限用户。禁言用户和黑名单用户都属于受限用户。）和游客两种类型。
+- 聊天室成员分固定成员（固定成员有四种类型，分别是创建者,管理员,普通用户,受限用户。禁言用户和黑名单用户都属于受限用户。），普通游客和匿名游客。
 
 ### <span id="进入聊天室">进入聊天室</span>
+
+#### <span id="非独立模式进入聊天室">非独立模式进入聊天室</span>
 
 - API 原型
 
@@ -3848,7 +3936,6 @@ NIMClient.getService(TeamServiceObserver.class).observeMemberRemove(memberRemove
  * @return InvocationFuture 可以设置回调函数。回调中返回聊天室基本信息
  */
 AbortableFuture<EnterChatRoomResultData> enterChatRoomEx(EnterChatRoomData roomData, int retryCount);
-
 ```
 
 - 参数说明
@@ -3895,6 +3982,124 @@ NIMClient.getService(ChatRoomService.class).enterChatRoomEx(data, 1).setCallback
 
 > 注意：当进入聊天室后，再发生掉线问题时，SDK会自动进行重连，无需开发者再次调用进入聊天室接口。
 > 注意：进入聊天室前，必须先成功登录 IM，否则会登录失败，并上报错误码1000。
+
+#### <span id="独立模式进入聊天室">独立模式进入聊天室</span>
+
+- API 原型
+
+```
+/**
+ * 设置聊天室独立模式
+ *
+ * @param cb      如果是独立模式，必须提供回调函数，用于SDK向APP获取聊天室地址信息的数据。
+ * @param account 独立登录的账号，可以不填。不填即为匿名登录
+ * @param token   独立登录的密码。
+ */
+public void setIndependentMode(ChatRoomIndependentCallback cb, String account, String token)；
+
+/**
+ * 进入聊天室
+ *
+ * @param roomData   聊天室基本数据（聊天室ID必填）
+ * @param retryCount 如果进入失败，重试次数
+ * @return InvocationFuture 可以设置回调函数。回调中返回聊天室基本信息
+ */
+AbortableFuture<EnterChatRoomResultData> enterChatRoomEx(EnterChatRoomData roomData, int retryCount);
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|cb      |如果是独立模式，必须提供回调函数，用于SDK向APP获取聊天室地址信息的数据|
+|account |独立登录的账号，可以不填。不填即为匿名登录|
+|token   |独立登录的密码|
+
+EnterChatRoomData部分参数说明：
+
+|返回值|EnterChatRoomData参数|说明|
+|:---|:---|:---|
+|boolean|isIndependentMode()|是否是独立登录聊天室|
+|String|getAccount()|获取独立登录模式的用户账号，null表示匿名登录|
+|String|getToken()|获取独立登录模式的用户密码|
+|ChatRoomIndependentCallback|getIndependentModeCallback()|获取独立模式的回调|
+|void|setIndependentMode<br>(ChatRoomIndependentCallback cb, <br>String account, String token)|设置聊天室独立模式。<br>如果是独立模式，必须提供回调函数，用于SDK向APP获取聊天室地址信息的数据。<br>独立登录的账号，可以不填。不填即为匿名登录。|
+
+- 示例
+
+示例一：独立模式的匿名登录
+
+```java
+// roomId 为聊天室id
+EnterChatRoomData data = new EnterChatRoomData(roomId);
+
+// 独立模式的匿名模式登录聊天室
+data.setNick("testNick"); // 此模式，昵称必填。以testNick为例
+data.setAvatar("avatar"); // 此模式，头像必填。以avatar为例
+data.setIndependentMode(new ChatRoomIndependentCallback() {
+    @Override
+    public List<String> getChatRoomLinkAddresses(String roomId, String account) {
+        return ChatRoomHttpClient.getInstance().fetchChatRoomAddress(roomId, null);
+    }
+}, null, null);
+
+NIMClient.getService(ChatRoomService.class).enterChatRoomEx(data, 1).setCallback(new RequestCallback<EnterChatRoomResultData>() {
+    @Override
+    public void onSuccess(EnterChatRoomResultData result) {
+
+    }
+
+    @Override
+    public void onFailed(int code) {
+
+    }
+
+    @Override
+    public void onException(Throwable exception) {
+
+    }
+});
+```
+
+示例二：独立模式的非匿名登录
+
+```java
+// roomId 为聊天室id
+EnterChatRoomData data = new EnterChatRoomData(roomId);
+
+// 独立模式的非匿名登录，帐号和密码必填，以account和token为例
+data.setIndependentMode(new ChatRoomIndependentCallback() {
+    @Override
+    public List<String> getChatRoomLinkAddresses(String roomId, String account) {
+        return ChatRoomHttpClient.getInstance().fetchChatRoomAddress(roomId, "account");
+    }
+}, "account", "token");
+
+NIMClient.getService(ChatRoomService.class).enterChatRoomEx(data, 1).setCallback(new RequestCallback<EnterChatRoomResultData>() {
+    @Override
+    public void onSuccess(EnterChatRoomResultData result) {
+
+    }
+
+    @Override
+    public void onFailed(int code) {
+
+    }
+
+    @Override
+    public void onException(Throwable exception) {
+
+    }
+});
+```
+
+> 注意：
+> 
+> - 独立模式匿名进入聊天室时，EnterChatRoomData 
+> 昵称、头像必填；独立模式非匿名进入聊天室时，EnterChatRoomData 帐号和密码必填。
+> - 如果已经使用 IM 登陆了，不能再使用独立模式进入聊天室，必须先退出 IM 登陆。如果当前已经是独立模式了，
+> 要切换成 IM 模式，必须先退出聊天室，登陆 IM，然后以IM 模式进入聊天室。
+>  
 
 ### <span id="获取进入聊天室失败错误码">获取进入聊天室失败错误码</span>
 
@@ -4839,8 +5044,8 @@ InvocationFuture<List<ChatRoomMessage>> pullMessageHistory(String roomId, long s
 
 ```
 long startTime = System.currentTimeMillis();
-// 从现在开始，查询200条消息
-NIMClient.getService(ChatRoomService.class).pullMessageHistory(roomId, startTime, 200)
+// 从现在开始，查询20条消息
+NIMClient.getService(ChatRoomService.class).pullMessageHistory(roomId, startTime, 20);
 ```
 
 2\. 根据消息方向获取历史消息
@@ -5063,7 +5268,62 @@ NIMClient.getService(ChatRoomService.class).dropQueue(roomId).setCallback(new Re
 		// 错误
     }
 });
-```
+```
+
+### <span id="独立模式下获取 bot 机器人列表">独立模式下获取 bot 机器人列表</span>
+
+- API 介绍
+
+独立模式下，由于不存在 IM 连接，无法同步 bot 机器人列表，因此需要调用此接口拉取机器人列表。
+建议在进入聊天室之后调用此接口，并且做好频控措施，以防用户频繁切换聊天室时该接口频率过高。
+
+- API 原型
+
+```java
+/**
+ * 独立聊天室场景下，获取当前全部聊天室机器人
+ *
+ * @param roomId 当前聊天室id
+ * @return InvocationFuture 可设置回调函数。回调中返回操作成功或者失败具体的错误码。
+ */
+InvocationFuture<List<NimRobotInfo>> pullAllRobots(String roomId);
+```
+
+- 示例
+
+```java
+
+/**
+ * 拉取机器人信息最短间隔 5min
+ */
+private static final long MIN_PULL_ROBOT_INTERNAL = 5 * 60 * 1000;
+
+private long lastTime = 0L;
+
+/**
+ *  独立模式进入聊天室之后调用
+ *
+ *  最短时间间隔 MIN_PULL_ROBOT_INTERNAL
+ * @param roomId
+ */
+public void pullRobotListIndependent(String roomId) {
+    if (System.currentTimeMillis() - lastTime < MIN_PULL_ROBOT_INTERNAL) {
+        return;
+    }
+
+    NIMClient.getService(ChatRoomService.class).pullAllRobots(roomId).setCallback(new RequestCallbackWrapper<List<NimRobotInfo>>() {
+        @Override
+        public void onResult(int code, List<NimRobotInfo> result, Throwable exception) {
+            if (code == 200 && result != null) {
+                lastTime = System.currentTimeMillis();
+                // 更新缓存
+            }
+        }
+    });
+}
+
+```
+
 
 ## <span id="用户资料托管">用户资料托管</span>
 
@@ -6625,24 +6885,76 @@ NIMClient.getService(MsgService.class).clearChattingHistory(account, sessionType
 
 系统通知是网易云通信系统内建的消息/通知，其对应的数据结构为 `SystemMessage`。由网易云通信服务器推送给用户的通知类消息，用于网易云通信系统类的事件通知。现在主要包括群变动的相关通知，例如入群申请，入群邀请等，如果第三方应用还托管了好友关系，好友的添加、删除也是这个类型的通知。系统通知由 SDK 负责接收和存储，并提供较简单的未读数管理。
 
+SystemMessage 接口说明：
+
+|返回值| SystemMessage 接口|说明|
+|:---|:---|:---|
+|String	|getAttach()|获取系统通知的附件内容|
+|Object	|getAttachObject()|获取系统通知附件内容解析后的对象|
+|String	|getContent()|获取系统通知的内容|
+|String	|getFromAccount()|该系统通知的发起方帐号|
+|long	|getMessageId()|获取系统通知 ID|
+|SystemMessageStatus	|getStatus()|获取系统通知的处理状态|
+|String	|getTargetId()|获取系统通知的目标 ID|
+|long	|getTime()|获取系统通知的发出时间，单位为 ms|
+|SystemMessageType	|getType()|获取系统通知类型|
+|boolean	|isUnread()|判断该系统通知是否已读|
+|void	|setAttach(String attach)|设置系统通知的附件内容|
+|void	|setAttachObject(Object object)|设置解析后的附件对象|
+|void	|setContent(String content)|设置系统通知的内容|
+|void	|setFromAccount(String fromAccount)|设置发起方帐号|
+|void	|setMessageId(long messageId)|设置系统通知 ID|
+|void	|setStatus(SystemMessageStatus status)|设置系统通知的处理状态|
+|void	|setTargetId(String targetId)|设置系统通知的目标 ID|
+|void	|setTime(long time)|设置系统通知的发出时间|
+|void	|setType(int type)|设置系统通知类型|
+|void	|setUnread(boolean unread)|设置改系统通知已读/未读|
+
 ### <span id="内置系统通知">内置系统通知</span>
 
 #### <span id="监听系统通知">监听系统通知</span>
 
-开发者可通过 `SystemMessageObserver` 监听系统通知，包括系统通知的到达事件和未读数的变化。
+监听系统通知的到达事件。
 
-- 监听系统通知的到达事件：
+- API 原型
 
 ```java
+/**
+ * 注册/注销系统消息接收事件观察者
+ * @param observer 观察者， 参数为接收到的系统消息
+ * @param register true为注册，false为注销
+ */
+public void observeReceiveSystemMsg(Observer<SystemMessage> observer, boolean register);
+```
+
+- 示例
+
+```
 NIMClient.getService(SystemMessageObserver.class)
 	.observeReceiveSystemMsg(new Observer<SystemMessage>() {
             @Override
             public void onEvent(SystemMessage message) {
+	            // 收到系统通知，可以做相应操作
             }
         }, register);
 ```
 
-- 监听未读数变化：
+#### <span id="监听未读数变化">监听未读数变化</span>
+
+此接口可以监听系统消息未读数的变化。
+
+- API 原型
+
+```
+/**
+ * 注册/注销系统消息未读数变化事件观察者
+ * @param observer 观察者， 参数当前的系统消息未读数
+ * @param register true为注册，false为注销
+ */
+public void observeUnreadCountChange(Observer<Integer> observer, boolean register);
+```
+
+- 示例
 
 ```java
 NIMClient.getService(SystemMessageObserver.class)
@@ -6651,57 +6963,268 @@ NIMClient.getService(SystemMessageObserver.class)
 private Observer<Integer> sysMsgUnreadCountChangedObserver = new Observer<Integer>() {
         @Override
         public void onEvent(Integer unreadCount) {
-            ...
+            // 更新未读数变化
         }
     };
 ```
 
-#### <span id="管理系统通知">管理系统通知</span>
+#### <span id="查询系统通知列表">查询系统通知列表</span>
 
-- 查询系统通知列表
+- API 原型
+
+1、异步版本
+
+```
+/**
+ * 查询系统通知列表（异步版本）
+ *
+ * @return InvocationFuture, 可设置回调函数，参数为系统通知列表
+ */
+public InvocationFuture<List<SystemMessage>> querySystemMessages(int offset, int limit);
+```
+
+2、同步版本
+```
+/**
+ * 查询系统通知列表（同步版本）
+ *
+ * @return 系统通知列表
+ */
+public List<SystemMessage> querySystemMessagesBlock(int offset, int limit);
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|offset |数据库查询偏移量|
+|limit  |数据库查询条数|
+
+- 示例
+
+1、异步版本
+
+```
+// 从10条开始，查询10条系统消息
+NIMClient.getService(SystemMessageService.class).querySystemMessages(10, 10)
+        .setCallback(new RequestCallback<List<SystemMessage>>() {
+    @Override
+    public void onSuccess(List<SystemMessage> param) {
+        // 查询成功
+    }
+
+    @Override
+    public void onFailed(int code) {
+		// 查询失败
+    }
+
+    @Override
+    public void onException(Throwable exception) {
+		// error
+    }
+});
+```
+
+2、同步版本
 
 ```java
 List<SystemMessage> temps = NIMClient.getService(SystemMessageService.class)
 	.querySystemMessagesBlock(offset, limit); // 参数offset为当前已经查了offset条，limit为要继续查询limit条。
 ```
-- 根据类型查询系统通知列表
+#### <span id="根据类型查询系统通知列表">根据类型查询系统通知列表</span>
 
 需要传入系统消息类型 `SystemMessageType` 集合。
+
+- API 原型
+
+1、同步版本
+
+```
+/**
+ * 根据类型查询系统通知列表（同步版本）
+ *
+ * @return 指定类型的系统通知集合
+ */
+public List<SystemMessage> querySystemMessageByTypeBlock(List<SystemMessageType> types, int offset, int limit);
+```
+
+2、异步版本
+
+```
+/**
+ * 根据类型查询系统通知列表（异步版本）
+ *
+ * @return InvocationFuture, 可设置回调函数，参数为指定类型的系统通知集合
+ */
+public InvocationFuture<List<SystemMessage>> querySystemMessageByType(List<SystemMessageType> types, int offset, int limit);
+
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|types  |待查询的系统通知类型集合|
+|offset |数据库查询偏移条数|
+|limit  |数据库查询条数|
+
+SystemMessageType 属性说明
+
+|SystemMessageType 属性|说明|
+|:---|:---|
+|AddFriend|对方（请求/已经）加你为好友|
+|ApplyJoinTeam|用户申请加入群组通知|
+|DeclineTeamInvite|用户拒绝入群邀请的系统通知|
+|RejectTeamApply|管理员拒绝用户入群申请|
+|TeamInvite|管理员邀请其他用户加入群组的系统通知|
+
+- 示例
+
+1、同步版本
 
 ```java
 List<SystemMessageType> types = new ArrayList<>();
 types.add(SystemMessageType.AddFriend);
 
-// 只查询“添加好友”类型的系统通知
+// 只查询“添加好友”类型的系统通知, 从头开始查询，查询3条
 List<SystemMessage> temps = NIMClient.getService(SystemMessageService.class)
-    .querySystemMessageByTypeBlock(types, loadOffset, LOAD_MESSAGE_COUNT);
+    .querySystemMessageByTypeBlock(types, 0, 3);
 ```
 
-- 设置系统通知状态
+2、异步版本
+
+```
+List<SystemMessageType> types = new ArrayList<>();
+types.add(SystemMessageType.AddFriend);
+
+// 只查询“添加好友”类型的系统通知, 从头开始查询，查询3条
+NIMClient.getService(SystemMessageService.class).querySystemMessageByType(types, 0, 3)
+        .setCallback(new RequestCallback<List<SystemMessage>>() {
+    @Override
+    public void onSuccess(List<SystemMessage> param) {
+	     // 查询成功
+    }
+
+    @Override
+    public void onFailed(int code) {
+		// 查询失败
+    }
+
+    @Override
+    public void onException(Throwable exception) {
+		// error
+    }
+});
+```
+
+#### <span id="设置系统通知状态">设置系统通知状态</span>
+
+- API 介绍
 
 系统通知状态枚举见 `SystemMessageStatus`，目前除了提供了未处理、已通过、已拒绝、已忽略、已过期这五种状态之外，提供了五个自定义扩展类型，供第三方开发者使用。
 在用户处理过系统通知之后，调用此函数更新系统通知状态。
 
+- API 原型
+
+```
+/**
+ * 设置系统通知状态。在用户处理过系统通知之后，可调用此函数更新
+ *
+ */
+public void setSystemMessageStatus(long messageId, SystemMessageStatus status);
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|messageId |系统通知的 ID|
+|status    |待更新的状态|
+
+SystemMessageStatus 属性说明：
+
+|参数|说明|
+|:---|:---|
+|declined|已拒绝|
+|expired|已过期|
+|extension1|开发者可自定义的扩展类型1|
+|extension2|开发者可自定义的扩展类型2|
+|extension3|开发者可自定义的扩展类型3|
+|extension4|开发者可自定义的扩展类型4|
+|extension5|开发者可自定义的扩展类型5|
+|ignored|已忽略|
+|init|未处理状态|
+|passed|已通过验证|
+
+- 示例
+
 ```java
+// 以设置系统通知状态为已过期为例
 SystemMessageStatus status = SystemMessageStatus.expired;
 NIMClient.getService(SystemMessageService.class)
      .setSystemMessageStatus(message.getMessageId(), status);
 ```
 
-- 删除一条系统通知
+#### <span id="删除一条系统通知">删除一条系统通知</span>
+
+- API 原型
+
+```
+/**
+ * 删除一条系统通知
+ *
+ * @param messageId 指定的系统通知ID
+ */
+public void deleteSystemMessage(long messageId);
+```
+
+- 示例
 
 ```java
 NIMClient.getService(SystemMessageService.class)
 	.deleteSystemMessage(message.getMessageId());
 ```
 
-- 删除所有系统通知
+#### <span id="删除所有系统通知">删除所有系统通知</span>
+
+此接口将删除所有的系统通知。
+
+- API 原型
+
+```
+/**
+ * 删除所有系统通知
+ */
+public void clearSystemMessages();
+```
+
+- 示例
 
 ```java
 NIMClient.getService(SystemMessageService.class).clearSystemMessages();
 ```
 
-- 删除指定类型的系统通知
+#### <span id="删除指定类型的系统通知">删除指定类型的系统通知</span>
+
+调用此接口，可以删除指定类型的系统通知。删除的类型见 `SystemMessageType`。
+
+- API 原型
+
+```
+/**
+ * 删除指定类型的系统通知
+ *
+ */
+public void clearSystemMessagesByType(List<SystemMessageType> types);
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|types |系统通知类型集合|
+
+- 示例
 
 ```java
 List<SystemMessageType> types = new ArrayList<>();
@@ -6711,16 +7234,46 @@ types.add(SystemMessageType.AddFriend);
 NIMClient.getService(SystemMessageService.class).clearSystemMessagesByType(types);
 ```
 
-- 查询系统通知未读数总和
+#### <span id="查询系统通知未读数总和">查询系统通知未读数总和</span>
+
+- API 介绍
 
 `SystemMessage` 中属性 unread 用来标志该条系统通知是否未读，该函数将返回所有未读的系统通知总数。
+
+- API 原型
+
+```
+/**
+ * 查询系统通知未读数总和
+ *
+ * @return 系统通知未读总数
+ */
+public int querySystemMessageUnreadCountBlock();
+```
+
+- 示例
 
 ```java
 int unread = NIMClient.getService(SystemMessageService.class)
 	.querySystemMessageUnreadCountBlock();
 ```
 
-- 查询指定类型的系统通知未读数总和
+#### <span id="查询指定类型的系统通知未读数总和">查询指定类型的系统通知未读数总和</span>
+
+- API 原型
+
+```
+/**
+ * 查询指定类型的系统通知未读数总和
+ *
+ * @param types 系统通知类型集合
+ * @return 指定类型的系统通知未读数总和
+ */
+public int querySystemMessageUnreadCountByType(List<SystemMessageType> types);
+
+```
+
+- 示例
 
 ```java
 List<SystemMessageType> types = new ArrayList<>();
@@ -6731,22 +7284,59 @@ int unread = NIMClient.getService(SystemMessageService.class)
 	.querySystemMessageUnreadCountByType(types);
 ```
 
-- 设置单条系统通知为已读
+#### <span id="设置单条系统通知为已读">设置单条系统通知为已读</span>
+
+- API 原型
+
+```
+/**
+ * 设置单条系统通知为已读
+ *
+ * @param messageId 系统通知ID
+ */
+public void setSystemMessageRead(long messageId);
+```
+
+- 示例
 
 ```java
 NIMClient.getService(SystemMessageService.class).setSystemMessageRead(messageId);
 ```
 
-- 将所有系统通知设为已读
+#### <span id="将所有系统通知设为已读">将所有系统通知设为已读</span>
 
 该函数调用后系统通知未读数将为零。
+
+- API 原型
+
+```
+/**
+ * 将所有系统通知设为已读，系统通知的未读消息总数将清零。
+ */
+public void resetSystemMessageUnreadCount();
+```
+
+- 示例
 
 ```java
 // 进入过系统通知列表后，可调用此函数将未读数值为0
 NIMClient.getService(SystemMessageService.class).resetSystemMessageUnreadCount();
 ```
 
-- 将指定类型的系统通知设为已读接口
+#### <span id="将指定类型的系统通知设为已读接口">将指定类型的系统通知设为已读接口</span>
+
+- API 原型
+
+```
+/**
+ * 将指定类型的系统通知设为已读
+ *
+ * @param types 系统通知类型集合
+ */
+public void resetSystemMessageUnreadCountByType(List<SystemMessageType> types);
+```
+
+- 示例
 
 ```java
 List<SystemMessageType> types = new ArrayList<>();
@@ -6760,6 +7350,31 @@ NIMClient.getService(SystemMessageService.class).resetSystemMessageUnreadCountBy
 
 系统通知属于网易云通信的体系内，如果第三方 APP 需要自己的系统通知，可使用自定义通知，其数据结构为 `CustomNotification`。
 
+CustomNotification 接口说明：
+
+|返回值|参数|说明|
+|:---|:---|:---|
+|String	|getApnsText()|获取如果接收方是 iOS 设备登录，该消息的 APNS 推送文本内容|
+|CustomNotificationConfig	|getConfig() |自定义通知的配置选项，详见 CustomNotificationConfig |
+|String	|getContent()|获取消息具体内容|
+|String	|getFromAccount()|获取该通知的发出者帐号|
+|NIMAntiSpamOption	|getNIMAntiSpamOption()|获取反垃圾配置|
+|Map |getPushPayload()|获取第三方自定义的推送属性|
+|String	|getSessionId()|获取聊天对象的 Id（好友帐号，群 ID 等）|
+|SessionTypeEnum	|getSessionType()|获取会话类型|
+|long	|getTime()|获取消息时间，单位为 ms|
+|boolean	|isSendToOnlineUserOnly()|该消息是否只发送当前在线的用户/群组|
+|void	|setApnsText(String apnsText)|设置如果接收方是 iOS 设备登录，该消息的 APNS 推送文本内容|
+|void	|setConfig(CustomNotificationConfig config) |设置自定义通知的配置选项|
+|void	|setContent(String content)|设置消息内容|
+|void	|setFromAccount(String fromAccount)|设置该通知的发起者帐号|
+|void	|setNIMAntiSpamOption(NIMAntiSpamOption antiSpamOption)|设置反垃圾配置项|
+|void	|setPushPayload(Map pushPayload)|设置第三方自定义的推送属性|
+|void	|setSendToOnlineUserOnly(boolean sendToOnlineUserOnly)|设置该消息是否只发送给当前在线的用户|
+|void	|setSessionId(String sessionId)|设置聊天对象ID|
+|void	|setSessionType(SessionTypeEnum sessionType)|设置会话类型|
+|void	|setTime(long time)|设置消息时间|
+
 自定义通知提供的灵活性包括：
 - 消息格式由第三方 APP 自己定义，只要内容是 `String` 就可以了。
 - 第三方 APP 的客户端和服务器均可以发送自定义通知。
@@ -6771,9 +7386,30 @@ NIMClient.getService(SystemMessageService.class).resetSystemMessageUnreadCountBy
 
 #### <span id="发送自定义通知">发送自定义通知</span>
 
+- API 介绍
+
 通过 SDK 提供的接口，第三方 APP 可以在客户端向其他用户或者群组发送自定义通知。SDK 能发送的自定义通知主要分为两种。
 
-一种是只有接收方当前在线才会收到，如果发送方发送时，指定的接收者不在线，这条通知将会被丢弃。在 demo 中，我们以此实现了"正在输入"这种状态的通知。
+1\. 只有接收方当前在线才会收到，如果发送方发送时，指定的接收者不在线，这条通知将会被丢弃。在 demo 中，我们以此实现了"正在输入"这种状态的通知。
+
+2\. 保证接收方一定会收到，如果接收方当前在线，会立即收到，如果当前不在线，则在下次登录后立即收到。如果接收方上次登录是 iOS 版本，还会收到 APNS 推送通知。
+
+- API 原型
+
+```
+/**
+ * 发送一条指令消息。<br>
+ * 由于SDK仅负责透传该消息，因此不会记录指令消息状态，但可以设置回调函数监听发送结果。
+ *
+ * @param notification 指令消息
+ * @return InvocationFuture 可设置回调函数，监听发送结果。
+ */
+public InvocationFuture<Void> sendCustomNotification(CustomNotification notification);
+```
+
+- 示例
+
+1、以只有接收方当前在线才会收到举例
 
 ```java
 // 构造自定义通知，指定接收者
@@ -6791,9 +7427,7 @@ notification.setContent(json.toString());
 NIMClient.getService(MsgService.class).sendCustomNotification(notification);
 ```
 
-另外一种保证接收方一定会收到，如果接收方当前在线，会立即收到，如果当前不在线，则在下次登录后立即收到。如果接收方上次登录是 iOS 版本，还会收到 APNS 推送通知。
-
-下面做了一个简单的示例：
+2、以保证接收方一定会收到举例
 
 ```java
 // 构造自定义通知，指定接收者
@@ -6826,15 +7460,19 @@ notification.setPushPayload(pushPayload);
 NIMClient.getService(MsgService.class).sendCustomNotification(notification);
 ```
 
-发送自定义通知时还可以设置通知配置选项 `CustomNotificationConfig`，目前支持的配置选项有：
+#### <span id="配置并发送自定义通知">配置并发送自定义通知</span>
 
-1\. enablePush ：该通知是否进行推送（消息提醒）。默认为 true 。
+发送自定义通知时还可以设置通知配置选项 `CustomNotificationConfig`。
 
-2\. enablePushNick ：该通知是否需要推送昵称（针对iOS客户端有效），如果为true，那么对方收到通知后，iOS端将不显示推送昵称。默认为 false 。
+CustomNotificationConfig属性说明：
 
-3\. enableUnreadCount ：该通知是否要计入未读数，如果为true，那么对方收到通知后，可以通过读取此配置项决定自己业务的未读计数变更。默认为 true 。
+|CustomNotificationConfig 属性|说明|
+|:---|:---|
+|enablePush |该通知是否进行推送（消息提醒）。默认为 true|
+|enablePushNick |该通知是否需要推送昵称（针对iOS客户端有效），<br>如果为true，那么对方收到通知后，iOS端将不显示推送昵称。<br>默认为 false|
+| enableUnreadCount |该通知是否要计入未读数，<br>如果为true，那么对方收到通知后，可以通过读取此配置项决定自己业务的未读计数变更。<br>默认为 true|
 
-示例如下：
+- 示例
 
 ```java
 CustomNotification command = new CustomNotification();
@@ -6850,9 +7488,22 @@ NIMClient.getService(MsgService.class).sendCustomNotification(command);
 
 #### <span id="接收自定义通知">接收自定义通知</span>
 
+- API 介绍
+
 上层有两种方式接收自定义通知，一是通过添加通知接收观察者的，二是通过广播的方式接收。SDK 从版本 1.4.0 开始，推荐使用第一种方式接收。从这个版本起，收到消息后就会激活 UI 主进程，并通知到已注册的观察者。只要在主进程的入口添加自定义通知的观察者，就能收到该通知。
 
-添加自定义通知的接收观察者代码如下：
+- API 原型
+
+```
+/**
+ * 注册/注销自定义通知接收观察者
+ * @param observer 观察者，参数为收到的自定义通知
+ * @param register true为注册，false为注销
+ */
+public void observeCustomNotification(Observer<CustomNotification> observer, boolean register);
+```
+
+- 示例
 
 ```java
 // 如果有自定义通知是作用于全局的，不依赖某个特定的 Activity，那么这段代码应该在 Application 的 onCreate 中就调用
@@ -6863,6 +7514,8 @@ NIMClient.getService(MsgServiceObserve.class).observeCustomNotification(new Obse
     }
 }, register);
 ```
+
+- 其他说明
 
 如果使用广播接收者的方式(Android 未来版本会禁止程序后台接收隐式广播，因此不建议开发者使用该方式)，首先需要在 AndroidManifest.xml 文件中声明一个接收器：
 
@@ -6935,51 +7588,139 @@ NIMClient.getService(MsgService.class).setChattingAccount(MsgService.MSG_CHATTIN
 
 ### <span id="内置消息提醒定制">内置消息提醒定制</span>
 
-网易云通信 SDK 提供内置的消息提醒（通知栏提醒）功能，并提供以下四个维度的定制，开启/关闭内置的消息提醒、更新消息提醒配置接口如下：
+网易云通信 SDK 提供内置的消息提醒（通知栏提醒）功能。
+
+#### <span id="开关通知栏消息提醒">开关通知栏消息提醒</span>
+
+只有 StatusBarNotificationConfig 配置不为空时才有效。
+
+- API 原型
+
+```
+/**
+ * 通知栏消息提醒开关控制。只有StatusBarNotificationConfig配置不为空时才有效
+ *
+ * @param on 开关
+ */
+public static void toggleNotification(boolean on);
+```
+
+- 示例
 
 ```java
 // 开启/关闭通知栏消息提醒
 NIMClient.toggleNotification(enable);
+```
 
-// 更新消息提醒配置 StatusBarNotificationConfig
+#### <span id="更新本地通知栏消息提醒配置">更新本地通知栏消息提醒配置（不可漫游）</span>
+
+- API 原型
+
+```
+/**
+ * 更新状态栏通知提醒设置
+ *
+ * @param config 设置
+ */
+public static void updateStatusBarNotificationConfig(StatusBarNotificationConfig config);
+```
+
+- 参数说明
+
+|StatusBarNotificationConfig 参数|说明|
+|:---|:---|
+|notificationSmallIconId|状态栏提醒的小图标的资源ID。<br>如果不提供，使用 app 的 icon|
+|ring|是否需要响铃提醒。<br>默认为 true|
+|notificationSound|响铃提醒的声音资源，如果不提供，使用系统默认提示音|
+|vibrate|是否需要振动提醒。<br>默认为 true|
+|ledARGB|呼吸灯的颜色。<br>建议尽量使用绿色、蓝色、红色等基本颜色，不要去用混合色|
+|ledOnMs|呼吸灯亮时的持续时间（毫秒）|
+|ledOffMs|呼吸灯熄灭时的持续时间（毫秒）|
+|hideContent|不显示消息详情开关。<br>默认为 false|
+|downTimeToggle|免打扰设置开关。默认为关闭|
+|downTimeBegin|免打扰的开始时间, 格式为HH:mm(24小时制)。|
+|downTimeEnd|免打扰的结束时间, 格式为HH:mm(24小时制)。<br>如果结束时间小于开始时间，免打扰时间为开始时间-24:00-结束时间。|
+|notificationEntrance|通知栏提醒的响应intent的activity类型。<br>可以为null。如果未提供，将使用包的launcher的入口intent的activity。|
+|titleOnlyShowAppName|通知栏提醒的标题是否只显示应用名。<br>默认是 false，当有一个会话发来消息时，显示会话名；<br>当有多个会话发来时，显示应用名。<br>修改为true，那么无论一个还是多个会话发来消息，标题均显示应用名。<br>应用名称请在 AndroidManifest 的 application 节点下设置 android:label|
+|notificationFolded|息通知栏展示样式是否折叠。默认是true，这样云信消息端内消息提醒最多之占一栏。<br>由于端外推送消息为展开模式，可以设置为false达到端内、端外表现一致。|
+|notificationColor|消息通知栏颜色，将应用到 NotificationCompat.Builder 的 setColor 方法。<br>对Android 5.0 以后机型会影响到smallIcon|
+
+- 示例
+
+```
+// 更新消息提醒配置 StatusBarNotificationConfig，以设置不响铃为例。
+StatusBarNotificationConfig config = UserPreferences.getStatusConfig();
+config.ring = false;
 NIMClient.updateStatusBarNotificationConfig(config);
 ```
 
-#### 接收消息时本地全局配置（不可漫游）
+- 其他说明
 
-在 SDKOption 中有通知栏提醒配置选项 StatusBarNotificationConfig：
-* 通知栏弹出时的小图标（ticker），默认用App的图标。
-* 是否需要响铃（指定铃声）
-* 是否需要震动
-* 呼吸灯颜色、闪烁时长
-* 免打扰（是否开启免打扰、设置免打扰开始结束时间），在免打扰时间段的不进行通知栏提醒。
-* 点击通知栏要跳转到哪里（一般来说会跳转到主界面，然后根据对应消息的发送者，跳转到指定的P2P聊天界面）
-* 通知栏样式展示样式配置（折叠、展开）（3.3版本新增）
-
-注意: StatusBarNotificationConfig 中的notificationEntrance 字段指明了点击通知需要跳转到的Activity，Activity启动后可以获取收到的消息：
+StatusBarNotificationConfig 中的notificationEntrance 字段指明了点击通知需要跳转到的Activity，Activity启动后可以获取收到的消息：
 
 ``` java
 ArrayList<IMMessage> messages = (ArrayList<IMMessage>)
 getIntent().getSerializableExtra(NimIntent.EXTRA_NOTIFY_CONTENT); // 可以获取消息的发送者，跳转到指定的单聊、群聊界面。
 ```
 
-#### 可漫游的消息提醒配置
-
-- 个人消息提醒配置（支持漫游）
+#### <span id="个人消息提醒配置（支持漫游）">个人消息提醒配置（支持漫游）</span>
 
 支持对用户开启或关闭消息提醒，关闭后，收到该用户发来的消息时，不再进行SDK内置的通知栏消息提醒。
 
-```java
-NIMClient.getService(FriendService.class).setMessageNotify(account, checkState).setCallback(new RequestCallback<Void>() {});
+- API 原型
+
+```
+/**
+ * 设置消息提醒/静音
+ *
+ * @return InvocationFuture 可以设置回调函数。消息发送完成后才会调用，如果出错，会有具体的错误代码。
+ */
+InvocationFuture<Void> setMessageNotify(String account, boolean notify);
 ```
 
-- 群消息提醒配置（支持漫游）
+- 参数说明
 
-群聊消息提醒可以单独打开或关闭，关闭提醒之后，用户仍然会收到这个群的消息，但是SDK内置的通知栏提醒将不会触发。如果开发者自行实现通知栏提醒，可通过 Team 的 mute 接口获取是否开启消息提醒，并决定是不是要显示通知。
-开发者可通过调用以下接口打开或关闭群聊消息提醒：
+|参数|说明|
+|:---|:---|
+|account |要设置消息提醒的帐号|
+|notify  |是否提醒该用户发来的消息，false 为静音（不提醒）|
+
+- 示例
 
 ```java
-NIMClient.getService(TeamService.class).muteTeam(teamId, mute);
+// 以不接收testAccount帐号消息为例
+NIMClient.getService(FriendService.class).setMessageNotify("testAccount", false).setCallback(new RequestCallback<Void>() {});
+```
+
+#### <span id="群消息提醒配置（支持漫游）">群消息提醒配置（支持漫游）</span>
+
+群聊消息提醒可以单独打开或关闭，关闭提醒之后，用户仍然会收到这个群的消息，但是SDK内置的通知栏提醒将不会触发。如果开发者自行实现通知栏提醒，可通过 Team 的 mute 接口获取是否开启消息提醒，并决定是不是要显示通知。
+
+- API 原型
+
+```
+/**
+ * 打开/关闭指定群的消息提醒。关闭消息提醒后，该群收到新消息后将不会有通知栏提醒
+ *
+ * @param teamId 群组ID
+ * @param mute   若为true：关闭消息提醒，false：打开消息提醒
+ * @return InvocationFuture 可以设置回调函数，监听操作结果
+ */
+InvocationFuture<Void> muteTeam(String teamId, boolean mute);
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|teamId |群组 ID|
+|mute   |若为true：关闭消息提醒，false：打开消息提醒|
+
+- 示例
+
+```java
+// 以关闭群聊消息为例
+NIMClient.getService(TeamService.class).muteTeam(teamId, true);
 ```
 
 #### 接收消息时定制提醒内容
@@ -6988,9 +7729,9 @@ NIMClient.getService(TeamService.class).muteTeam(teamId, mute);
 
 1\. 发送方可以设置了推送文案，如果设置，那么通知栏显示该推送文案。
 
-对于 SDK 1.7.0 及以上版本，开发者可以调用 `IMMessage` 的 `setPushContent` 接口设置推送文案；
+对于 SDK 1.7.0 及以上版本，开发者可以调用 IMMessage 的 `setPushContent` 接口设置推送文案；
 
-对于低于 1.7.0 的早期版本，开发者可以调用 `IMMessage` 的 `setContent` 接口设置推送文案：对于文本消息，该接口会同时修改消息内容和提醒内容，对于其他格式消息，该接口仅修改提醒内容。如果接收方是 iOS 客户端，消息推送的内容遵从相同的规则：如果设置了 `setContent` 字段，则使用设置的字符串作为推送内容，否则使用默认提醒内容。
+对于低于 1.7.0 的早期版本，开发者可以调用 IMMessage 的 `setContent` 接口设置推送文案：对于文本消息，该接口会同时修改消息内容和提醒内容，对于其他格式消息，该接口仅修改提醒内容。如果接收方是 iOS 客户端，消息推送的内容遵从相同的规则：如果设置了 `setContent` 字段，则使用设置的字符串作为推送内容，否则使用默认提醒内容。
 
 2\. （ SDK 1.8.0 及以上版本支持）本地定制的通知栏提醒文案，目前支持配置Ticker文案（通知栏弹框条显示内容）和通知内容文案（下拉通知栏显示的通知内容）， SDK 会在收到消息时回调 `MessageNotifierCustomization` 接口， 开发者可以根据昵称和收到的消息（消息类型、会话类型、发送者、消息扩展字段等）来决定要显示的通知内容。示例如下：
 
@@ -7027,23 +7768,17 @@ public class NimApplication extends Application {
 
 3\. 如果上述两点都不定制(返回null)，将显示默认提醒内容：
 
-文本消息：文本消息内容。
-
-文件消息：{说话者}发来一条文件消息
-
-图片消息：{说话者}发来一条图片消息
-
-语音消息：{说话者}发来一条语音消息
-
-视频消息：{说话者}发来一条视频消息
-
-位置消息：{说话者}分享了一个地理位置
-
-通知消息：{说话者}: 通知消息
-
-提示消息：{说话者}: 提示消息
-
-自定义消息：{说话者}: 自定义消息
+|类型|文案|
+|:---|:---|
+|文本消息|文本消息内容|
+|文件消息|{说话者}发来一条文件消息|
+|图片消息|{说话者}发来一条图片消息|
+|语音消息|{说话者}发来一条语音消息|
+|视频消息|{说话者}发来一条视频消息|
+|位置消息|{说话者}分享了一个地理位置|
+|通知消息|{说话者}: 通知消息|
+|提示消息|{说话者}: 提示消息|
+|自定义消息|{说话者}: 自定义消息|
 
 除文本消息外，开发者可以通过  `NimStrings` 类修改这些默认提醒内容。
 
@@ -7085,17 +7820,17 @@ String getDisplayNameForMessageNotifier(String account, String sessionId, Sessio
  */
 Bitmap getTeamIcon(String tid);
 ```
-实现上述需要的方法，在 `SDKOptions` 中配置 `UserInfoProvider` 实例，在 SDK 初始化时传入 `SDKOptions` 方可生效。
+实现上述需要的方法，在 SDKOptions 中配置 UserInfoProvider 实例，在 SDK 初始化时传入 SDKOptions 方可生效。
 
 需要注意的是，上述返回头像 Bitmap 的函数，请尽可能从内存缓存里拿头像，如果读取本地头像可能导致 UI 进程阻塞，从而导致通知栏提醒延时弹出。
 
 #### 发送消息时指定消息提醒
 
-发送消息时可以设置消息配置选项 `CustomMessageConfig`，可以设定是否需要推送，是否需要计入未读数等。
+发送消息时可以设置消息配置选项 CustomMessageConfig，可以设定是否需要推送，是否需要计入未读数等。
 
-`enablePush` ： 该消息是否进行推送（消息提醒）。默认为 true 。
+1\. enablePush ： 该消息是否进行推送（消息提醒）。默认为 true 。
 
-`enableUnreadCount` ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
+2\. enableUnreadCount ：该消息是否要计入未读数，如果为 true ，那么对方收到消息后，最近联系人列表中未读数加1。默认为 true 。
 
 ### <span id="自行实现消息提醒">自行实现消息提醒</span>
 
@@ -7103,20 +7838,50 @@ Bitmap getTeamIcon(String tid);
 
 ### <span id="桌面端在线配置推送">桌面端在线配置推送</span>
 
+#### <span id="设置桌面端在线推送">设置桌面端在线推送</span>
+
 支持配置桌面端（PC/Mac/Web）在线时，移动端是否需要推送。
 
-```java
+- API 原型
+
+```
 /**
-* 设置桌面端(PC/Mac/WEB)在线时，移动端是否需要推送
-* @param isOpen true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
-* @return InvocationFuture 可以设置回调函数。成功会返回成功信息，错误会返回相应的错误码。
-*/
+ * 设置桌面端(PC/WEB)在线时，移动端是否需要推送
+ * @param isOpen true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
+ * @return InvocationFuture 可以设置回调函数。成功会返回成功信息，错误会返回相应的错误码。
+ */
+InvocationFuture<Void> updateMultiportPushConfig(boolean isOpen);
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|isOpen |true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送|
+
+- 示例
+
+```java
 NIMClient.getService(SettingsService.class)
 	.updateMultiportPushConfig(isOpen)
 	.setCallback(new RequestCallback<Void>() { ... });
 ```
 
+#### <span id="查询桌面端在线推送">查询桌面端在线推送</span>
+
 支持查询当前配置的推送状态。true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
+
+- API 原型
+
+```
+/**
+ * 获取桌面端（PC/WEB)在线时，移动端是否需要推送
+ * @return true 桌面端在线时移动端不需推送；false 桌面端在线时移动端需推送
+ */
+boolean isMultiportPushOpen();
+```
+
+- 示例
 
 ```java
 NIMClient.getService(SettingsService.class).isMultiportPushOpen()
@@ -7344,6 +8109,9 @@ SDK 在同时满足这两个条件的设备上才会启动华为推送服务。
         <action android:name="com.huawei.android.push.intent.CLICK" />
         <action android:name="com.huawei.intent.action.PUSH_STATE" />
     </intent-filter>
+    <meta-data
+         android:name="CS_cloud_ablitity"
+         android:value="successRateAnalytics" />
 </receiver>
 
 <!-- 兼容性广播 -->
@@ -7557,38 +8325,106 @@ InvocationFuture<Void> setPushNoDisturbConfig(boolean isOpen, String startTime, 
 
 ## <span id="事件订阅">事件订阅(在线状态)</span>
 
-3.6.0 版本新增事件订阅、发布机制，IM Demo 基于事件订阅实现了在线状态展示，开发者可以参考 Demo 的实现，根据自己的场景做修改。
-
-事件均为 `Event` 对象，包含事件类型、事件值、有效期、发布者、多端配置等属性，事件不保存，同一账号的同一类型事件，后发布将会覆盖之前发布。当有新事件产生时（服务端产生或者客户端发布），服务端会对所有订阅着下发该事件。
+事件订阅和事件发布功能，事件均为 `Event` 对象，事件有两个重要的属性：事件类型 type 和事件值 value，一种 type 的事件会存在多个 value，比如在线状态事件，它的type = 1，登入和登出则是两个不同 value 的事件。在服务器允许的情况下， 任何人都可以发布 `Event`，订阅者则能够收到该 `Event`。事件不保存，同一账号的同一类型事件，后发布将会覆盖之前发布。当有新事件产生时（服务端产生或者客户端发布），服务端会对所有订阅者下发该事件。
 
 事件类型 1-99999 为网易云通信预留，目前仅使用事件类型 1 为在线状态事件 `NimOnlineStateEvent`，预留事件比普通事件多一个 `nimConfig` 字段信息，该字段为服务端填写，对于在线状态事件，`nimConfig` 字段值为一段 json ，携带各端是否在线的信息。
 
+Event 接口说明：
+
+|返回值|Event 接口|说明|
+|:---|:---|:---|
+|void|setEventType(int eventType)|设置事件类型，发布事件时可用
+|void|setEventValue(int eventValue)|设置事件值，发布事件时可用
+|void|setConfig(String config)|设置事件的扩展字段，由客户端发布事件时配置
+|void|setBroadcastOnlineOnly(boolean only)|事件发布后，是否只广播给在线的订阅者
+|void|setExpiry(long expiry)|设置事件有效期，单位秒，范围为 60s 到 7days
+|void|setSyncSelfEnable(boolean syncSelfEnable)|设置事件是否支持多端同步
+|int|getEventType() |获取事件类型
+|int|getEventValue() |获取事件值
+|String|getConfig() |获取事件扩展字段
+|long|getExpiry() |获取事件有效期
+|boolean|isBroadcastOnlineOnly() |事件是否只广播给在线的订阅者
+|String|getPublisherAccount() |获取事件发布者
+|int|getPublisherClientType() |获取事件发布客户端类型，参考ClientType
+|long|getPublishTime() |获取事件发布时间
+|String|getConfigByClient(int client) |获取某种类型客户端发布的事件扩展信息
+|String|getNimConfig() |获取预留事件中的配置信息，由服务端填入
+
+
 ### <span id="订阅事件">订阅事件</span>
 
-可以订阅指定账号的指定类型的事件，使用 `EventSubscribeService#subscribeEvent` 方法，参数为 `EventSubscribeRequest` 对象，指定订阅的事件类型、事件发布者集合、订阅有效期，以及是否立即同步事件。订阅有效期范围为 60 秒到 30 天，数值单位为秒，是否立即同步事件若设置为true则订阅成功后会立即返回目标事件。
+- API 介绍
+
+用于订阅指定账号的指定类型的事件，需要指定事件类型、事件发布者集合、订阅有效期，以及是否立即同步事件。订阅有效期范围为 60 秒到 30 天，数值单位为秒，是否立即同步事件若设置为true则订阅成功后会立即返回目标事件。
 
 对于订阅有效期，由于多端订阅会覆盖这个时长，所以建议开发者各端订阅时长保持一致。此外，需要注意的是，为了性能考虑，在30秒内对同一账号同一事件订阅，即使设置为立即同步服务的将不会下发目标事件。
 
+- API 原型
+
+```java
+/**
+* 订阅事件
+*
+* @param request 订阅请求信息 必须填写事件类型、事件发布者账号以及订阅有效期
+* @return InvocationFuture 可以设置回调函数。请求完成后才会调用，返回订阅失败的账号集合，如果数组长度为0则全部成功。如果出错，会有具体的错误代码。
+*/
+InvocationFuture<List<String>> subscribeEvent(EventSubscribeRequest request);
+```
+
+- 参数说明
+
+`EventSubscribeRequest` 属性说明
+
+|参数|说明|
+|:---|:---|
+|eventType |事件类型，1-99999 为云信保留类型|
+|expiry |订阅的有效期，范围为 60s 到 30days，数值单位为秒|
+|syncCurrentValue |订阅后是否立刻同步事件状态值，默认为 false|
+|publishers |事件发布者的账号集合|
+
+在订阅事件中，订阅请求中必需填写 `eventType`，`expiry`，`publishers` 字段。
+
+- 示例
+
 ```java
 NIMClient.getService(EventSubscribeService.class).subscribeEvent(eventSubscribeRequest).setCallback(new RequestCallbackWrapper<List<String>>() {
-        @Override
-        public void onResult(int code, List<String> result, Throwable exception) {
-            if (code == ResponseCode.RES_SUCCESS) {
-                if (result != null) {
-                    // 部分订阅失败的账号。。。
-                    //
-                    //
-                }
-            } else {
-
+    @Override
+    public void onResult(int code, List<String> result, Throwable exception) {
+        if (code == ResponseCode.RES_SUCCESS) {
+            if (result != null) {
+                // 部分订阅失败的账号。。。
+                //
+                //
             }
+        } else {
+
         }
-    });
+    }
+});
 ```
+
 
 ### <span id="取消订阅事件">取消订阅事件</span>
 
-可以取消订阅指定账号的指定类型的事件，使用 `EventSubscribeService#unSubscribeEvent` 方法，参数为 `EventSubscribeRequest` 对象，指定取消订阅的事件类型、事件发布者集合。
+- API 介绍
+
+可以取消订阅指定账号的指定类型的事件，指定取消订阅的事件类型以及事件发布者集合。
+
+- API 原型
+
+```java
+/**
+ * 按账号取消指定事件的订阅关系
+ *
+ * @param request 取消订阅信息，只需填写事件类型和事件发布者账号集合（被订阅者集合）
+ * @return InvocationFuture 可以设置回调函数。请求完成后才会调用，返回取消订阅失败的账号集合，如果数组长度为0则全部成功。如果出错，会有具体的错误代码。
+ */
+InvocationFuture<List<String>> unSubscribeEvent(EventSubscribeRequest request);
+```
+
+在取消订阅中，订阅请求中必须填写 `eventType` 字段，如果不填写 `publishers` 字段，则取消指定事件的全部订阅关系
+
+- 示例
 
 ```java
 NIMClient.getService(EventSubscribeService.class).unSubscribeEvent(eventSubscribeRequest);
@@ -7596,9 +8432,25 @@ NIMClient.getService(EventSubscribeService.class).unSubscribeEvent(eventSubscrib
 
 ### <span id="发布事件">发布事件</span>
 
-目前网易云通信支持客户端发布类型 1 并且值为 10001 的事件，仅用于设置事件的多端配置信息，多端同时在线时设置了该信息后服务端会将这些设置合并后下发，订阅者收到事件之后可以通过 `Event#getConfigByClient` 方法获取该账号的多端信息，基于此，Demo实现的在线状态发布了网络状态以及客户端类型，根据多端的优先级来进行展示。
+- API 介绍
 
-使用 `EventSubscribeService#publishEvent` 方法，参数为 `Event` 对象。
+目前网易云通信支持客户端发布类型 1 并且值为 10001 的事件，仅用于设置事件的多端配置信息，多端同时在线时设置了该信息后服务端会将这些设置合并后下发，订阅者收到事件之后可以通过 `Event#getConfigByClient` 方法获取该账号的多端信息。
+
+- API 原型
+
+```java
+/**
+ * 发布事件
+ *
+ * @param event 事件
+ * @return InvocationFuture 可以设置回调函数。请求完成后才会调用，如果出错，会有具体的错误代码。
+ */
+InvocationFuture<Event> publishEvent(Event event);
+```
+
+发布事件时，需要自行构造出 `Event` 对象，必须需要填写的字段为 `eventType` , `eventValue`。 
+
+- 示例
 
 ```java
 NIMClient.getService(EventSubscribeService.class).publishEvent(event);
@@ -7606,7 +8458,33 @@ NIMClient.getService(EventSubscribeService.class).publishEvent(event);
 
 ### <span id="查询事件订阅">查询事件订阅</span>
 
-支持查询事件订阅，用于查询某种事件的订阅关系，使用 `EventSubscribeService#querySubscribeEvent ` 方法，参数为 `EventSubscribeRequest` 对象，指定查询订阅的事件类型、事件发布者集合，返回`List<EventSubscribeResult>` 集合。
+- API 介绍
+
+支持查询事件订阅，用于查询某种事件的订阅关系。
+
+- API 原型
+
+```java
+/**
+ * 查询指定事件类型的订阅关系
+ * @param request 查询订阅信息，必须填写事件类型、事件发布者账号,填写后将查询指定发布者的订阅关系。
+ * @return InvocationFuture 可以设置回调函数。请求完成后才会调用。如果出错，会有具体的错误代码。
+ */
+InvocationFuture<List<EventSubscribeResult>> querySubscribeEvent(EventSubscribeRequest request);
+```
+
+- 参数说明
+
+`EventSubscribeResult` 说明
+
+|参数|说明|
+|:---|:---|
+|eventType |事件类型，1-99999 为云信保留类型|
+|expiry |订阅的有效期，范围为 60s 到 30days，数值单位为秒|
+|time |事件订阅的时间
+|publisherAccount |事件发布者账号集合
+
+- 示例
 
 ```java
 NIMClient.getService(EventSubscribeService.class).querySubscribeEvent(request);
@@ -7614,22 +8492,90 @@ NIMClient.getService(EventSubscribeService.class).querySubscribeEvent(request);
 
 ### <span id="监听事件">监听事件</span>
 
-通过监听接口监听接收到在线状态事件，开发者必须将此监听生命周期与 Application 生命周期一致。
+- API 介绍
+
+通过 `EventSubscribeServiceObserver`监听接口监听接收到的事件，开发者必须将此监听生命周期与 Application 生命周期一致。
+
+- API 原型
+
+```java
+/**
+ * 监听事件状态变更
+ *
+ * @param observer 观察者，参数为最新的事件状态信息
+ * @param register true为注册监听，false为取消监听
+ */
+void observeEventChanged(Observer<List<Event>> observer, boolean register);
+```
+
+- 示例
 
 ```java
 NIMClient.getService(EventSubscribeServiceObserver.class).observeEventChanged(new Observer<List<Event>>() {
-            @Override
-            public void onEvent(List<Event> events) {
-                // 处理
-            }
-        }, true);
+    @Override
+    public void onEvent(List<Event> events) {
+        // 处理
+    }
+}, true);
 ```
 
 ## <span id="语音录制和播放">语音录制和播放</span>
 
 ### <span id="录制">录制</span>
 
-网易云通信 SDK 提供了一套录制高清语音的接口 `AudioRecorder` ，用于采集，编码，存储高清语音数据，并提供过程回调，供开发者进行自由的界面展现。
+- API 介绍
+
+网易云通信 SDK 提供了一套录制高清语音的接口 `AudioRecorder` ，用于采集，编码，存储高清语音数据，并提供过程回调，回调接口为 `IAudioRecordCallback`，供开发者进行自由的界面展现。
+
+- API 原型
+
+```
+/**
+ * 构造函数
+ *
+ * @param context     上下文
+ * @param recordType  录制音频类型（aac/amr)
+ * @param maxDuration 最长录音时长，到该长度后，会自动停止录音
+ * @param cb          录音过程回调
+ */
+public AudioRecorder(Context context, RecordType recordType,
+        int maxDuration, IAudioRecordCallback cb);
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|context     |上下文|
+|recordType  |录制音频类型（aac/amr)|
+|maxDuration |最长录音时长，到该长度后，会自动停止录音|
+|cb          |录音过程回调|
+
+AudioRecorder 接口说明：
+
+|返回值|AudioRecorder 接口|说明|
+|:---|:---|:---|
+|void	|completeRecord(boolean cancel)|完成(结束)录音，根据参数 cancel，做不同的回调。<br>如果 cancel 为 true，回调 IAudioRecordCallback#onRecordCancel, 为 false，回调 IAudioRecordCallback#onRecordSuccess |
+|void	|destroyAudioRecorder()|释放资源|
+|int	|getCurrentRecordMaxAmplitude()|获取当前录音时最大振幅, 40ms 更新一次数据|
+|void	|handleEndRecord(boolean isSuccess, int duration) |处理录制结束后的操作，回调 IAudioRecordCallback#onRecordSuccess |
+|boolean	|isRecording()|是否正在录音|
+|void	|startRecord()|启动(开始)录音，如果成功，会按照顺序回调 IAudioRecordCallback#onRecordReady 和 IAudioRecordCallback#onRecordStart|
+
+IAudioRecordCallback 接口说明：
+
+|IAudioRecordCallback 接口|说明|
+|:---|:---|
+|onRecordCancel()|录音结束， 用户主动取消录音|
+|onRecordFail()|录音结束，出错|
+|onRecordReachedMaxTime(int maxTime)|到达指定的最长录音时间|
+|onRecordReady()|录音器已就绪，提供此接口用于在录音前关闭本地音视频播放（可选）|
+|onRecordStart(File audioFile, RecordType recordType)|开始录音回调|
+|onRecordSuccess(File audioFile, long audioLength, RecordType recordType)|录音结束，成功|
+
+
+- 示例
+
 Recorder 使用示例代码如下：
 
 ```java
@@ -7676,12 +8622,57 @@ if (!recorder.startRecord()) {
 recorder.completeRecord(cancel);
 ```
 
-- 在录音过程中可以获取当前录音时最大振幅（40ms更新一次数据），接口为 `AudioRecorder#getCurrentRecordMaxAmplitude` 。
+### <span id="播放">播放</span>
 
-### <span id="回放">回放</span>
+- API 介绍
 
 网易云通信的语音消息格式有 aac 和 amr 两种格式可选，由于 2.x 系统的原生 MediaPlayer 不支持 aac 格式，因此 SDK 也提供了一个 AudioPlayer 来播放网易云通信的语音消息。同时，将 MediaPlayer 的接口进行了一些封装，使得在会话场景下播放语音更加方便。
-使用示例代码如下：
+
+- API 原型
+
+```
+/**
+ * 音频播放器构造函数
+ * @param context 上下文参数
+ * @param audioFile 待播放音频的文件路径
+ * @param listener 播放进度监听者
+ */
+public AudioPlayer(Context context, String audioFile, OnPlayListener listener)；
+```
+
+- 参数说明
+
+|参数|说明|
+|:---|:---|
+|context |上下文参数|
+|audioFile |待播放音频的文件路径|
+|listener |播放进度监听者|
+
+AudioPlayer 接口说明：
+
+|返回值|AudioPlayer 接口|说明|
+|:---|:---|:---|
+|long	|getCurrentPosition()|获取当前音频播放进度|
+|long	|getDuration()|获取音频持续时间长度|
+|OnPlayListener	|getOnPlayListener() |获取 AudioPlayer 的播放进度监听|
+|boolean	|isPlaying()|查询是否正在播放|
+|void	|seekTo(int msec)|让播放器跳转到指定位置继续播放|
+|void	|setDataSource(String audioFile)|设置音频来源|
+|void	|setOnPlayListener(OnPlayListener listener)|设置播放监听|
+|void	|start(int audioStreamType)|开始播放|
+|void	|stop()|停止播放|
+
+OnPlayListener 接口说明:
+
+|OnPlayListener 接口|说明|
+|:---|:---|
+|onCompletion()|播放完成|
+|onError(String error)|播放过程中出错。参数为出错原因描述|
+|onInterrupt()|中断播放|
+|onPlaying(long curPosition)|播放进度报告，每隔 500ms 会回调一次，告诉当前进度。 参数为当前进度，单位为毫秒，可用于更新 UI|
+|onPrepared()|文件解码完成，准备播放|
+
+- 示例
 
 ```java
 // 定义一个播放进程回调类
@@ -7719,87 +8710,127 @@ player.seekTo(pausedPosition);
 // 主动停止播放
 player.stop();
 ```
+
+## <span id="NOS云存储服务">NOS云存储服务</span>
+
 ## <span id="智能对话机器人">智能对话机器人</span>
 
-4.0.0 版本新增智能对话机器人功能，智能对话机器人解决方案依托网易IM即时通讯、语音识别、语义理解等服务，为开发者提供人机交互方式API/SDK、语音识别、意图识别、知识库配置、动态接口等功能，可以在应用IM内快速集成场景丰富的智能对话机器人。
+智能对话机器人功能，智能对话机器人解决方案依托网易IM即时通讯、语音识别、语义理解等服务，为开发者提供人机交互方式API/SDK、语音识别、意图识别、知识库配置、动态接口等功能，可以在应用IM内快速集成场景丰富的智能对话机器人。
 
-区别于开发者业务后台自行设定的机器人，网易波特中配置的机器人，类似网易精灵、小黄鸡这种通过配置知识库，与用户进行交流问答的智能对话机器人。开发者可以在 [网易波特 服务](http://sw.bot.163.com) 开通机器人服务。
+区别于开发者业务后台自行设定的机器人，网易波特中配置的机器人，类似网易精灵、小黄鸡这种通过配置知识库，与用户进行交流问答的智能对话机器人。开发者可以在 [网易波特服务](http://sw.bot.163.com) 开通机器人服务。
 
-机器人和云信账号是有绑定关系的，一个机器人账号对应了一个云信 id ，两者互相独立 ， 云信内部负责维护对应关系。机器人所对应的云信用户不会在线，也不应该和其他正常用户有用户关系，如加好友，拉黑等。
+智能对话机器人和云信账号是有绑定关系的，一个机器人账号对应了一个云信 id ，两者互相独立 ， 云信内部负责维护对应关系。机器人所对应的云信用户不会在线，也不应该和其他正常用户有用户关系，如加好友，拉黑等。
 
 智能对话机器人消息属于云信内置基础消息类型中的一种，详细请参考 [发送消息](#发送消息) 章节。
 
-### <span id="机器人信息">机器人信息</span>
+机器人的数据会在每次登录后自动同步至客户端，机器人信息由 `NimRobotInfo` 表示 `NimRobotInfo` 继承 `UserInfo`。
 
-- 获取机器人信息
+`NimRobotInfo`接口列表
 
-机器人信息使用 `NimRobotInfo` 表示，继承至 `UserInfo`，登录成功之后机器人信息会同步至本地，开发者使用
-RobotServiceObserve#observeRobotChangedNotify 监听机器人增、减变化通知。
+|返回值| NimRobotInfo 接口| 说明
+|---|---|---|
+|String|getBotId()|返回bot 账号|
+|String|getAccount()|返回bot 对应的云信账号|
+|String|getIntroduce()|返回机器人简介|
+|String|getName()|返回机器人名称|
+|String|getAvatar()|返回机器人头像地址|
+
+### <span id="获取机器人信息">获取机器人信息</span>
+
+- API介绍
+
+在每次登录成功之后机器人信息会同步至本地，开发者在应用启动之后，首先查询本地机器人信息，此外注册监听机器人增、减变化通知。
+
+- API 原型
+
+`RobotService` 获取本地机器人接口
+
+```java
+/**
+ * 获取本地所有有效的机器人
+ *
+ * @return 机器人信息集合
+ */
+List<NimRobotInfo> getAllRobots();
+```
+
+`RobotServiceObserve` 监听机器人变化接口
+
+```java
+/**
+ * 监听机器人变更通知
+ *
+ * @param observer 观察者，参数为收到的机器人变更通知。
+ * @param register true为注册监听，false为取消监听
+ */
+void observeRobotChangedNotify(Observer<RobotChangedNotify> observer, boolean register);
+```
+
+- 参数说明
+
+`RobotChangedNotify` 说明
+
+|参数|说明|
+|---|---|
+|updatedRobots| 更新的机器人列表
+|deletedRobots| 被删除的机器人列表
+
+- 示例
+
+```java
+List<NimRobotInfo> robots = NIMClient.getService(RobotService.class).getAllRobots();
+```
 
 ```java
 private Observer<RobotChangedNotify> robotChangedNotifyObserver = new Observer<RobotChangedNotify>() {
     @Override
     public void onEvent(RobotChangedNotify robotChangedNotify) {
-        List<NimRobotInfo> addedOrUpdatedRobots = robotChangedNotify.getAddedOrUpdatedRobots();
-        List<String> addedOrUpdateRobotAccounts = new ArrayList<>(addedOrUpdatedRobots.size());
-        List<String> deletedRobotAccounts = robotChangedNotify.getDeletedRobots();
-
-        String account;
-        for (NimRobotInfo f : addedOrUpdatedRobots) {
-            account = f.getAccount();
-            robotMap.put(account, f);
-            addedOrUpdateRobotAccounts.add(account);
-        }
-
-        // 通知机器人变更
-        if (!addedOrUpdateRobotAccounts.isEmpty()) {
-            // log
-            DataCacheManager.Log(addedOrUpdateRobotAccounts, "on add robot", UIKitLogTag.ROBOT_CACHE);
-        }
-
-        // 处理被删除的机器人
-        if (!deletedRobotAccounts.isEmpty()) {
-            // update cache
-            for (String a : deletedRobotAccounts) {
-                robotMap.remove(a);
-            }
-        }
+        // 更新本地机器人信息缓存
     }
 };
 
 NIMClient.getService(RobotServiceObserve.class).observeRobotChangedNotify(robotChangedNotifyObserver, register);
-```
-此外使用 RobotService#getAllRobots 获取本地数据库的所有机器人信息。
-
-```java
-List<NimRobotInfo> robots = NIMClient.getService(RobotService.class).getAllRobots();
 ```
 
 ### <span id="机器人消息">机器人消息</span>
 
 - 机器人对话流程
 
-机器人类型消息分为机器人上行、下行消息，分别表示发送给机器人和机器人下发的消息。客户端使用 MessageBuilder#createRobotMessage 构建上行消息并调用消息发送接口，收到机器人下行消息之后通过，机器人消息附件 RobotAttachment 中可以获取机器人回复内容。
+智能对话机器人是云信消息类型的一种，机器人类型消息分为机器人上行、下行消息，分别表示发送给机器人和机器人下发的消息。客户端发送机器人上行消息之后，会收到机器人应答的下行消息。
+
+在机器人消息附件 `RobotAttachment` 调用下面的接口区分上行、下行消息
 
 ```java
-RobotAttachment attachment = (RobotAttachment) message.getAttachment();
-
-if (attachment.isRobotSend()) {
-    // 下行消息
-    RobotResponseContent content =  new RobotResponseContent(attachment.getResponse()));
-}
+public boolean isRobotSend();
 ```
 
 - 机器人回复内容
 
 机器人内容格式规范可参考 [机器人消息体模板说明](/docs/product/IM即时通讯/机器人消息体模板说明)。
 
-开发者调用 RobotAttachment#getResponse 方法返回机器人回复内容，再将机器人返回内容解析成为视图展示，UiKit组件提供了解析模板，开发者可以参考 RobotResponseContent、RobotContentLinearLayout 的实现。
+客户端构建上行消息并调用消息发送接口，收到机器人下行消息之后，在机器人消息附件 `RobotAttachment` 调用下面的接口
 
 ```java
-RobotResponseContent content = new RobotResponseContent(attachment.getResponse()));
+public String getResponse();
 ```
-RobotContentLinearLayout 负责将 RobotResponseContent 解析为视图。
+
+### <span id="同步获取机器人列表">同步获取机器人列表</span>
+
+- API介绍
+
+`getAllRobots`  接口从本地存储中获取机器人信息，此外还可以直接增量同步获取机器人列表，与本地合并后全量返回，供开发者选择调用。
+
+- API原型
+
+```java
+/**
+ * 获取全部机器人列表，和服务端同步
+ * @return InvocationFuture 可设置回调函数。回调中返回操作成功或者失败具体的错误码。
+ */
+InvocationFuture<List<NimRobotInfo>> pullAllRobots();
+```
+
+
 
 ## <span id="容易混淆的概念">容易混淆的概念</span>
 
