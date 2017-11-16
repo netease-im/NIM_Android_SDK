@@ -1,4 +1,5 @@
 ## <span id="概要介绍"> 概要介绍</span>
+
 网易云通信 SDK 为移动应用提供一个完善的 IM 系统开发框架，屏蔽掉 IM 系统的复杂细节，对外提供较为简洁的 API 接口，方便第三方应用快速集成 IM 功能。IM SDK 提供的能力如下：
 
 - 网络连接管理
@@ -10,69 +11,53 @@
 - 用户资料、好友关系托管服务
 - 智能对话机器人服务
 
-### <span id="总体接口介绍">总体接口介绍</span>
+### <span id="业务介绍">业务介绍</span>
 
-网易云通信 SDK 提供了两类接口供开发者调用：一类是第三方 APP 主动发起请求，第二类是第三方 APP 作为观察者监听事件和变化。第一类接口名均以 **Service** 结尾，例如 AuthService ，第二类接口名均以 **ServiceObserver** 结尾，例如 AuthServiceObserver，个别太长的类名则可能直接以 **Observer** 结尾，比如 SystemMessageObserver。
+- 点对点聊天
 
-SDK 提供三种接口返回值：基本数据类型（同步接口），InvocationFuture（异步接口） 和 AbortableFuture（异步接口）。异步接口基本上都是从主进程发起调用，然后在后台进程执行，最后再将结果返回给主进程。
+即一对一单聊，网易云信 SDK 提供文字、图片、语音、地理位置、文件、自定义消息等多种能力，开发者可根据自身需求定制附件下载、未读、推送等多种消息行为。
 
-| SDK 接口返回值      |     说明 |
-| :-------- | :-------- |
-| 基本数据类型 | 同步接口 |
-| InvocationFuture | 异步接口 |
-| AbortableFuture | 异步接口，耗时很长或者传输大量数据时使用，可用 abort() 方法，中断请求。<br>例如上传下载、登录等 |
+- 群聊天
 
-异步接口可设置回调函数，提供两种方式：RequestCallback 和 RequestCallbackWrapper。
+即多人聊天群组服务，内置普通群和高级群，普通群类似于没有权限的讨论组，适用于快速创建多人会话的场景；高级群在普通群的基础上拥有了更多的权限设置，包括邀请的验证方式，管理员权限，禁言等更高级的功能，适用于更复杂更定制化的场景。
 
-| 异步接口回调函数 | 说明 |
-| :-------- | :--------|
-| RequestCallback | 需要实现3个接口：<br> 成功 onSuccess, 失败 onFailed, 异常 onException|
-| RequestCallbackWrapper | 需要实现 onResult。封装了成功，失败和异常的3个接口，在参数上进行区分|
+群聊天有人数限制，人数在千级别以上推荐使用聊天室。
 
-SDK 提供的接口主要按照业务进行分类，大致说明如下：
+- 聊天室聊天
 
-| SDK接口 | 说明 |
-| :-------- | :--------|
-| AuthService | 用户认证服务接口，提供登录注销接口。 |
-| AuthServiceObserver | 用户认证服务观察者接口。 |
-| MsgService | 消息服务接口，用于发送消息，管理消息记录等。<br>同时还提供了发送自定义通知的接口。 |
-| MsgServiceObserve | 接收消息，消息状态变化等观察者接口。 |
-| LuceneService | 聊天消息全文检索接口。 |
-| TeamService | 群组服务接口，用于发送群组消息，管理群组和群成员资料等。 |
-| TeamServiceObserve | 群组和群成员资料变化观察者。 |
-| SystemMessageService | 系统通知观察者。 |
-| FriendService | 好友关系托管接口，目前支持添加、删除好友、<br>获取好友列表、黑名单、设置消息提醒。 |
-| FriendServiceObserve | 好友关系变更、黑名单变更通知观察者。 |
-| UserService | 用户资料托管接口，提供获取用户资料、修改个人资料等。 |
-| UserServiceObserve | 用户资料托管接口，提供获取用户资料、修改个人资料等。 |
-| AVChatManager | 语音视频通话接口。 |
-| RTSManager | 实时会话接口。 |
-| NosService | 网易云存储服务，提供文件上传和下载。 |
-| NosServiceObserve | 网易云存储传输进度观察者接口。 |
-| MixPushService | 第三方推送接口，提供第三方推送服务。 |
-| EventSubscribeService | 事件订阅服务接口，提供事件订阅等服务 |
-| EventSubscribeServiceObserver | 事件状态变更观察者接口。 |
-| RedPacketService | 红包接口。提供获取红包sdk token等功能。 |
-| RobotService | 机器人操作相关接口，提供获取机器人、<br>获取机器人信息、判断是否是机器人等功能。 |
-| RobotServiceObserve | 机器人数据变更观察者接口。 |
-| SettingsService | 系统设置接口。提供多端推送、免打扰配置 |
-| SettingsServiceObserver | 系统设置变更观察者接口。 |
+聊天室是群聊人数在万级甚至更多的聊天解决方案，可用于游戏直播，网络授课，远程医疗等业务场景上。聊天室没有人数限制，同时提供基本的权限服务。
 
-### <span id="SDK 数据缓存目录结构">SDK 数据缓存目录结构</span>
+聊天室在进入时需要重新建立链接，同时由于场景消息量通常很大， SDK 不会做聊天室消息存储，需要上层自行实现。 在人数低于千级别时，推荐使用群组聊天。
 
-当收到多媒体消息后，SDK 会负责下载这些多媒体文件，同时 SDK 还要记录一些关键的 log，因此 SDK 需要一个数据缓存目录。
-该目录可以在 SDK 初始化时通过 `SDKOptions#sdkStorageRootPath` 进行设置。
-如果不设置，则默认为“/{外卡根目录}/{app\_package\_name}/nim/”，其中外卡根目录获取方式为 Environment.getExternalStorageDirectory().getPath()。
-如果你的 APP 需要清除缓存功能，可扫描该目录下的文件，按照你们的规则清理即可。 在 SDK 初始化完成后可以通过 `NimClient#getSdkStorageDirPath` 获取 SDK 数据缓存目录。
+- 消息全文检索
 
-SDK数据缓存目录下面包含如下子目录：
-- log: SDK日志包含一个文件：nim\_sdk.log，大小一般不超过 8M。音视频通话的日志包含3个文件：avchat\_n.log, nrtc\_engine.log, nrtc\_net.log。
-默认路径为：**/{外卡根目录}/{app\_package\_name}/nim/log/**，如果在 SDKOptions 中配置过 sdkStorageRootPath，那么日志路径为“{sdkStorageRootPath}/log/”。
-- file: 文件消息文件
-- image: 图片消息文件
-- audio：语音消息文件
-- video：视频消息文件
-- thumb：图片/视频缩略图文件
+网易云通信 Android SDK 拥有基于 Lucene 的全文检索插件，支持聊天消息的全文检索。
+
+- 资料托管
+
+网易云通信提供了用户资料的可选托管，开发者可以根据喜好，将用户资料托管给网易云信或者 APP 应用服务器自行管理。
+
+- 消息推送
+
+集成网易云通信 Android SDK 的 APP 运行起来时，会有个后台进程（push 进程），该进程保持了与网易云通信 Server 的长连接。只要这个 push 进程活着（网易云通信提供安卓保活机制），就能接收网易云通信 Server 推过来的消息，进行通知栏提醒。
+
+- 事件订阅
+
+网易云信允许用户订阅监听其他用户产生的事件，产生的事件的方式分为两种：
+
+1\. 用户主动发布的自定义事件。
+
+2\. 由于用户的一些特定行为触发的内置系统事件。
+
+开发者可以用事件订阅自定义用户的在线状态，如忙碌，隐身等等。
+
+- 高清语音
+
+网易云信提供了音频播放、高清语音录制的功能。格式支持 aac 和 amr。
+
+- 智能对话机器人
+
+智能对话机器人解决方案依托网易即时通讯、语音识别、语义理解等服务，为开发者提供人机交互 API / SDK、语音识别、意图识别、知识库配置、动态接口等功能，可以在应用内快速集成场景丰富的智能对话机器人。
 
 ## <span id="集成方式">集成方式</span>
 
@@ -91,6 +76,8 @@ IM SDK 是网易云通信其他能力（实时语音视频、互动白板等）�
 >
 > 2\. 从 3.2 版本开始 jni 库支持 64位 系统
 
+此外，为了让开发者可以轻松快速的在 App 中集成 IM 功能，我们还提供了开源的 [聊天组件](https://github.com/netease-im/NIM_Android_UIKit)，通过简单的配置就可以实现聊天功能。
+
 ### <span id="通过 Gradle 集成 SDK">通过 Gradle 集成 SDK</span>
 
 首先，在整个工程的 build.gradle 文件中，配置 repositories，使用 jcenter 或者 maven ，二选一即可，如下：
@@ -103,7 +90,7 @@ allprojects {
 }
 ```
 
-第二步，在主工程的 build.gradle 文件中，添加 dependencies。根据自己项目的需求，添加不同的依赖即可。注意：版本号必须一致，这里以 3.3.0 版本为例：
+第二步，在主工程的 build.gradle 文件中，添加 dependencies。根据自己项目的需求，添加不同的依赖即可。注意：版本号必须一致，这里以 4.4.0 版本为例：
 
 ```groovy
 
@@ -120,15 +107,15 @@ dependencies {
     compile fileTree(dir: 'libs', include: '*.jar')
     // 添加依赖。注意，版本号必须一致。
     // 基础功能 (必需)
-    compile 'com.netease.nimlib:basesdk:3.3.0'
+    compile 'com.netease.nimlib:basesdk:4.4.0'
     // 音视频需要
-    compile 'com.netease.nimlib:avchat:3.3.0'
+    compile 'com.netease.nimlib:avchat:4.4.0'
     // 聊天室需要
-    compile 'com.netease.nimlib:chatroom:3.3.0'
+    compile 'com.netease.nimlib:chatroom:4.4.0'
     // 实时会话服务需要
-    compile 'com.netease.nimlib:rts:3.3.0'
+    compile 'com.netease.nimlib:rts:4.4.0'
     // 全文检索服务需要
-    compile 'com.netease.nimlib:lucene:3.3.0'
+    compile 'com.netease.nimlib:lucene:4.4.0'
 }
 ```
 
@@ -150,36 +137,31 @@ SDK 包的 libs 文件夹中，包含了网易云通信的 jar 文件，各 jni 
 libs
 ├── arm64-v8a
 │   ├── libne_audio.so （高清语音录制功能必须）
-│   └── libcosine.so （后台保活需要）
 │   ├── libnrtc_engine.so （音视频需要）
 │   └── libnrtc_network.so （音视频需要）
 │   └── librts_network.so （实时会话服务需要）
 ├── armeabi-v7a
 │   ├── libne_audio.so
-│   └── libcosine.so
 │   ├── libnrtc_engine.so
 │   └── libnrtc_network.so
 │   └── librts_network.so
 ├── x86
 │   ├── libne_audio.so
-│   └── libcosine.so
 │   ├── libnrtc_engine.so
 │   └── libnrtc_network.so
 │   └── librts_network.so
 ├── x86_64
 │   ├── libne_audio.so
-│   └── libcosine.so
 │   ├── libnrtc_engine.so
 │   └── libnrtc_network.so
 │   └── librts_network.so
 │
-├── nim-basesdk-3.3.0.jar （基础功能）
-├── nim-chatroom-3.3.0.jar （聊天室需要）
-├── nim-rts-3.3.0.jar （实时会话、文档转码需要）
-├── nim-avchat-3.3.0.jar （音视频需要）
-├── nim-lucene-3.3.0.jar （全文检索需要）
+├── nim-basesdk-4.4.0.jar （基础功能）
+├── nim-chatroom-4.4.0.jar （聊天室需要）
+├── nim-rts-4.4.0.jar （实时会话、文档转码需要）
+├── nim-avchat-4.4.0.jar （音视频需要）
+├── nim-lucene-4.4.0.jar （全文检索需要）
 ├── nrtc-sdk.jar（音视频需要）
-└── cosinesdk.jar (Android 后台保活需要)
 ```
 
 第二种，只包含 IM 基础功能和聊天室功能的 SDK 包。如果只需要 IM 基础功能和聊天室功能，只需要将下面这些文件拷贝到你的工程的 libs 目录下，即可完成配置。列表如下：
@@ -188,24 +170,19 @@ libs
 libs
 ├── arm64-v8a
 │   ├── libne_audio.so （高清语音录制功能必须）
-│   └── libcosine.so （Android 后台保活需要）
 ├── armeabi-v7a
 │   ├── libne_audio.so
-│   └── libcosine.so
 ├── x86_64
 │   ├── libne_audio.so
-│   └── libcosine.so
 ├── x86
 │   ├── libne_audio.so
-│   └── libcosine.so
-├── nim-basesdk-3.3.0.jar （基础功能）
-├── nim-chatroom-3.3.0.jar （聊天室需要）
-└── cosinesdk.jar (Android 后台保活需要)
+├── nim-basesdk-4.4.0.jar （基础功能）
+├── nim-chatroom-4.4.0.jar （聊天室需要）
 ```
 
 以上文件列表中，jar 文件版本号可能会不同，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
 
-> 按需配置 jar 包： 如果不需要聊天室功能，可以在IM和聊天室的基础包中，去掉 nim-chatroom-3.3.0.jar。 如果只需要 IM 基础功能和 音视频功能，可以在 IM 和聊天室的基础包中，去掉 nim-chatroom-3.3.0.jar，so 库需要加上 libnrtc*.so，还需加上 nim-avchat-3.3.0.jar 和 nrtc-sdk.jar； 如果不需要安卓保活功能，可以去掉 libcosine.so 和 cosinesdk.jar ，以及 assets 文件夹中的 cosine 文件夹( AndroidManifest.xml 文件中相关的安卓保活的配置需要删去)。 如果不需要全文检索功能，可以去掉 nim-lucene-3.3.0.jar（该包有 1M+ 大小，如果没有用到消息全文检索功能，建议去掉）。
+> 按需配置 jar 包： 如果不需要聊天室功能，可以在IM和聊天室的基础包中，去掉 nim-chatroom-4.4.0.jar。 如果只需要 IM 基础功能和 音视频功能，可以在 IM 和聊天室的基础包中，去掉 nim-chatroom-4.4.0.jar，so 库需要加上 libnrtc*.so，还需加上 nim-avchat-4.4.0.jar 和 nrtc-sdk.jar。 如果不需要全文检索功能，可以去掉 nim-lucene-4.4.0.jar（该包有 1M+ 大小，如果没有用到消息全文检索功能，建议去掉）。
 
 如果你使用的 IDE 是 Android Studio，要将 jni 库按照 IDEA 工程目录的结构，放置在对应的目录中（一般为 src/main/jniLibs）。或者在 build.gradle 中配置好 jniLibs 的 sourceSets（可参考 demo 的 build.gradle）。
 
@@ -260,25 +237,24 @@ libs
             android:name="com.netease.nim.appKey"
             android:value="key_of_your_app" />
 
-        <!-- 声明网易云通信后台服务，如需保持后台推送，使用独立进程效果会更好。 -->
+        <!-- 云信后台服务，请使用独立进程。 -->
         <service
             android:name="com.netease.nimlib.service.NimService"
             android:process=":core"/>
 
-       <!-- 运行后台辅助服务 -->
+       <!-- 云信后台辅助服务 -->
         <service
             android:name="com.netease.nimlib.service.NimService$Aux"
             android:process=":core"/>
 
-        <!-- 声明网易云通信后台辅助服务 -->
+        <!-- 云信后台辅助服务 -->
         <service
             android:name="com.netease.nimlib.job.NIMJobService"
             android:exported="true"
             android:permission="android.permission.BIND_JOB_SERVICE"
             android:process=":core"/>
 
-        <!-- 网易云通信SDK的监视系统启动和网络变化的广播接收器，用户开机自启动以及网络变化时候重新登录，
-            保持和 NimService 同一进程 -->
+        <!-- 云信监视系统启动和网络变化的广播接收器，保持和 NimService 同一进程 -->
         <receiver android:name="com.netease.nimlib.service.NimReceiver"
             android:process=":core"
             android:exported="false">
@@ -288,31 +264,19 @@ libs
             </intent-filter>
         </receiver>
 
-        <!-- 网易云通信进程间通信 Receiver -->
+        <!-- 云信进程间通信 Receiver -->
         <receiver android:name="com.netease.nimlib.service.ResponseReceiver"/>
 
-        <!-- 网易云通信进程间通信service -->
+        <!-- 云信进程间通信service -->
         <service android:name="com.netease.nimlib.service.ResponseService"/>
 
-        <!-- 安卓保活配置 -->
-        <service
-            android:name="com.netease.cosine.core.CosineService"
-            android:process=":cosine">
-        </service>
-
-        <receiver
-            android:name="com.netease.cosine.target.CosineReceiver"
-            android:exported="true"
-            android:process=":cosine">
-        </receiver>
-
-        <meta-data
-            android:name="com.netease.cosine.target"
-            android:value=""/>
-        <meta-data
-            android:name="com.netease.cosine.target.receiver"
-            android:value="com.netease.nimlib.service.NimReceiver"/>
-
+        <!-- 云信进程间通信provider -->
+        <!-- android:authorities="{包名}.ipc.provider", 请将com.netease.nim.demo替换为自己的包名 -->
+        <provider
+            android:name="com.netease.nimlib.ipc.NIMContentProvider"
+            android:authorities="com.netease.nim.demo.ipc.provider"
+            android:exported="false"
+            android:process=":core" />
     </application>
 </manifest>
 ```
@@ -327,7 +291,77 @@ libs
 #如果你使用全文检索插件，需要加入
 -dontwarn org.apache.lucene.**
 -keep class org.apache.lucene.** {*;}
-```
+```
+
+### <span id="总体接口介绍">总体接口介绍</span>
+
+网易云通信 SDK 提供了两类接口供开发者调用：一类是第三方 APP 主动发起请求，第二类是第三方 APP 作为观察者监听事件和变化。第一类接口名均以 **Service** 结尾，例如 AuthService ，第二类接口名均以 **ServiceObserver** 结尾，例如 AuthServiceObserver，个别太长的类名则可能直接以 **Observer** 结尾，比如 SystemMessageObserver。
+
+SDK 提供三种接口返回值：基本数据类型（同步接口），InvocationFuture（异步接口） 和 AbortableFuture（异步接口）。异步接口基本上都是从主进程发起调用，然后在后台进程执行，最后再将结果返回给主进程。
+
+| SDK 接口返回值      |     说明 |
+| :-------- | :-------- |
+| 基本数据类型 | 同步接口 |
+| InvocationFuture | 异步接口 |
+| AbortableFuture | 异步接口，耗时很长或者传输大量数据时使用，可用 abort() 方法，中断请求。<br>例如上传下载、登录等 |
+
+异步接口可设置回调函数，提供两种方式：RequestCallback 和 RequestCallbackWrapper。
+
+| 异步接口回调函数 | 说明 |
+| :-------- | :--------|
+| RequestCallback | 需要实现3个接口：<br> 成功 onSuccess, 失败 onFailed, 异常 onException|
+| RequestCallbackWrapper | 需要实现 onResult。封装了成功，失败和异常的3个接口，在参数上进行区分|
+
+> SDK 4.4.0 API调用框架增强：
+- 支持带 Looper 的非UI线程发起的异步API调用，直接回调到调用者线程。老版本会默认回调到 UI 线程。
+- 提供异步强制转成同步的接口：NIMClient#syncRequest,允许设置最大同步等待时间，支持非 UI 线程里需要同步调用云信 API的场景。
+- 添加自动生成的 NIMSDK类，开发者可以直接采用 NIMSDK#getXXXService 方法获取服务接口，不再需要传递 XXXService.class，简化 API 调用方式。其他插件自动生成的调用入口类为：NIMChatRoomSDK、NIMLuceneSDK。例如采用 `NIMSDK.getAuthService().login()` 替换`NIMClient.getService(AuthService.class).login()`。
+
+SDK 提供的接口主要按照业务进行分类，大致说明如下：
+
+| SDK接口 | 说明 |
+| :-------- | :--------|
+| AuthService | 用户认证服务接口，提供登录注销接口。 |
+| AuthServiceObserver | 用户认证服务观察者接口。 |
+| MsgService | 消息服务接口，用于发送消息，管理消息记录等。<br>同时还提供了发送自定义通知的接口。 |
+| MsgServiceObserve | 接收消息，消息状态变化等观察者接口。 |
+| LuceneService | 聊天消息全文检索接口。 |
+| TeamService | 群组服务接口，用于发送群组消息，管理群组和群成员资料等。 |
+| TeamServiceObserve | 群组和群成员资料变化观察者。 |
+| SystemMessageService | 系统通知观察者。 |
+| FriendService | 好友关系托管接口，目前支持添加、删除好友、<br>获取好友列表、黑名单、设置消息提醒。 |
+| FriendServiceObserve | 好友关系变更、黑名单变更通知观察者。 |
+| UserService | 用户资料托管接口，提供获取用户资料、修改个人资料等。 |
+| UserServiceObserve | 用户资料托管接口，提供获取用户资料、修改个人资料等。 |
+| AVChatManager | 语音视频通话接口。 |
+| RTSManager | 实时会话接口。 |
+| NosService | 网易云存储服务，提供文件上传和下载。 |
+| NosServiceObserve | 网易云存储传输进度观察者接口。 |
+| MixPushService | 第三方推送接口，提供第三方推送服务。 |
+| EventSubscribeService | 事件订阅服务接口，提供事件订阅等服务 |
+| EventSubscribeServiceObserver | 事件状态变更观察者接口。 |
+| RedPacketService | 红包接口。提供获取红包sdk token等功能。 |
+| RobotService | 机器人操作相关接口，提供获取机器人、<br>获取机器人信息、判断是否是机器人等功能。 |
+| RobotServiceObserve | 机器人数据变更观察者接口。 |
+| SettingsService | 系统设置接口。提供多端推送、免打扰配置 |
+| SettingsServiceObserver | 系统设置变更观察者接口。 |
+
+### <span id="SDK 数据缓存目录结构">SDK 数据缓存目录结构</span>
+
+当收到多媒体消息后，SDK 会负责下载这些多媒体文件，同时 SDK 还要记录一些关键的 log，因此 SDK 需要一个数据缓存目录。
+该目录可以在 SDK 初始化时通过 `SDKOptions#sdkStorageRootPath` 进行设置。
+在 SDK 4.4.0版本起，如果开发者配置在 Context#getExternalCacheDir 及 Context#getExternalFilesDir 等应用扩展存储缓存目录下（即/sdcard/Android/data/{package}），SDK 内部将不再检查写权限。值得注意的是，改缓存目录下的的文件会随着App卸载而被删除，也可以由用户手动在设置界面里面清除。
+如果不设置，则默认为“/{外卡根目录}/{app\_package\_name}/nim/”，其中外卡根目录获取方式为 Environment.getExternalStorageDirectory().getPath()。
+如果你的 APP 需要清除缓存功能，可扫描该目录下的文件，按照你们的规则清理即可。 在 SDK 初始化完成后可以通过 `NimClient#getSdkStorageDirPath` 获取 SDK 数据缓存目录。
+
+SDK数据缓存目录下面包含如下子目录：
+- log: SDK日志包含一个文件：nim\_sdk.log，大小一般不超过 8M。音视频通话的日志包含3个文件：avchat\_n.log, nrtc\_engine.log, nrtc\_net.log。
+默认路径为：**/{外卡根目录}/{app\_package\_name}/nim/log/**，如果在 SDKOptions 中配置过 sdkStorageRootPath，那么日志路径为“{sdkStorageRootPath}/log/”。
+- file: 文件消息文件
+- image: 图片消息文件
+- audio：语音消息文件
+- video：视频消息文件
+- thumb：图片/视频缩略图文件
 
 ## <span id="初始化">初始化</span>
 
@@ -343,7 +377,7 @@ public class NimApplication extends Application {
 		NIMClient.init(this, loginInfo(), options());
 
 		// ... your codes
-		if (inMainProcess()) {
+		if (NIMUtil.isMainProcess(this)) {
 			// 注意：以下操作必须在主进程中进行
             // 1、UI相关初始化操作
             // 2、相关Service调用
@@ -367,10 +401,10 @@ public class NimApplication extends Application {
 	    options.statusBarNotificationConfig = config;
 
 	    // 配置保存图片，文件，log 等数据的目录
-	    // 如果 options 中没有设置这个值，SDK 会使用下面代码示例中的位置作为 SDK 的数据目录。
+	    // 如果 options 中没有设置这个值，SDK 会使用采用默认路径作为 SDK 的数据目录。
 	    // 该目录目前包含 log, file, image, audio, video, thumb 这6个目录。
+	    String sdkPath = getAppCacheDir(context) + "/nim"; // 可以不设置，那么将采用默认路径
 	    // 如果第三方 APP 需要缓存清理功能， 清理这个目录下面个子目录的内容即可。
-	    String sdkPath = Environment.getExternalStorageDirectory() + "/" + getPackageName() + "/nim";
 	    options.sdkStorageRootPath = sdkPath;
 
 	    // 配置是否需要预下载附件缩略图，默认为 true
@@ -415,7 +449,38 @@ public class NimApplication extends Application {
     private LoginInfo loginInfo() {
 	    return null;
 	}
+
+	/**
+     * 配置 APP 保存图片/语音/文件/log等数据的目录
+     * 这里示例用SD卡的应用扩展存储目录
+     */
+    static String getAppCacheDir(Context context) {
+        String storageRootPath = null;
+        try {
+            // SD卡应用扩展存储区(APP卸载后，该目录下被清除，用户也可以在设置界面中手动清除)，请根据APP对数据缓存的重要性及生命周期来决定是否采用此缓存目录.
+            // 该存储区在API 19以上不需要写权限，即可配置 <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="18"/>
+            if (context.getExternalCacheDir() != null) {
+                storageRootPath = context.getExternalCacheDir().getCanonicalPath();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        if (TextUtils.isEmpty(storageRootPath)) {
+            // SD卡应用公共存储区(APP卸载后，该目录不会被清除，下载安装APP后，缓存数据依然可以被加载。SDK默认使用此目录)，该存储区域需要写权限!
+            storageRootPath = Environment.getExternalStorageDirectory() + "/" + DemoCache.getContext().getPackageName();
+        }
+
+        return storageRootPath;
+    }
 }
+```
+
+- 进程判断工具
+
+使用 `NIMUtil` 类可以进行进程判断:
+
+```java
+boolean mainProcess = NIMUtil.isMainProcess(context);
 ```
 
 - SDKOptions 参数说明
@@ -432,15 +497,16 @@ public class NimApplication extends Application {
 | thumbnailSize | 消息缩略图的尺寸|
 | sessionReadAck | 是否开启会话已读多端同步|
 | improveSDKProcessPriority | 是否提高SDK进程优先级（默认提高，可以降低SDK核心进程被系统回收的概率）|
-| serverConfig | 配置专属服务器的地址|
+| serverConfig | 配置私有化的服务器地址|
 | preLoadServers | 预加载服务，默认true，不建议设置为false，预加载连接可以优化登陆流程|
 | teamNotificationMessageMarkUnread | 群通知消息是否计入未读数，默认不计入未读|
 | useXLog | 使用性能更好的SDK日志模式。默认使用普通日志模式。|
-| enableSDKBackgroundReconnectStrategy | 是否开启SDK后台自动断网重连策略。默认开启|
-| animatedImageThumbnailEnabled | 开启对动图缩略图的支持，默认为 NO，截取第一帧|
-
+| animatedImageThumbnailEnabled | 开启对动图缩略图的支持，默认为 false，截取第一帧|
+| asyncInitSDK | 是否异步初始化SDK，默认为 false。开启可降低 Application#onCreate 中 SDK 初始化函数的同步响应时间|
+| reducedIM | 是否是弱IM场景，默认为 false。如果您的APP 仅在部分场景按需使用 IM 能力(不需要在应用启动时就做自动登录)，并不需要保证消息通知、数据的实时性，那么这里可以填 true。弱 IM 场景下，push 进程采用懒启动策略(延迟到用户登录阶段)，启动后其生命周期将跟随 UI 进程，降低弱 IM 场景的APP的后台功耗开销。|
+| checkMainifestConfig | 是否在 SDK 初始化时检查清单文件配置是否完全，默认为 false，建议开发者在调试阶段打开，上线时关掉 |
 > 特别提醒：SDK 的初始化方法必须在主进程中调用，在非主进程中初始化无效。请在主进程中调用 SDK XXXService 提供的方法，在主进程中注册 XXXServiceObserver
-的观察者（有事件变更，会回调给主进程的主线程）。如果你的模块运行在非主进程，请自行实现主进程与非主进程的通信（Binder/AIDL/BroadcastReceiver等IPC）将主进程回调或监听返回的数据传递给非主进程。
+的观察者（有事件变更，会回调给主进程的主线程）。如果你的模块运行在非主进程，请自行实现主进程与非主进程的通信（AIDL/Messenger/ContentProvider/BroadcastReceiver等IPC渠道）将主进程回调或监听返回的数据传递给非主进程。
 
 [网易云通信 Andorid SDK 断网重连机制及登录返回码说明 ](http://bbs.netease.im/read-tid-231)
 
@@ -926,7 +992,7 @@ SDK 原生支持发送文本，语音，图片，视频，文件，地理位置�
 | robot | 机器人消息 |
 | custom | 第三方 App 自定义消息 |
 
-消息内容根据类型不同也不一样。文本消息最为简单，消息内容就是 `content` 字符串。其他消息类型均带有一个消息附件对象 `MsgAttachment`，该对象在传输时一般序列化为 json 格式字符串。内建的消息附件主要有以下几种：
+消息内容根据类型不同也不一样。文本消息最为简单，消息内容就是 `content` 字符串。其他消息类型均带有一个消息附件对象 `MsgAttachment`，该对象在传输时一般序列化为 json 格式字符串；此外，所有实现 `MsgAttachment` 接口的成员都必须实现 Serializable 接口。内建的消息附件主要有以下几种：
 
 | 内建消息附件      |     说明 |
 | :-------- | :--------|
@@ -2335,14 +2401,14 @@ private void registerNimBroadcastMessage(boolean register) {
 
 有两种方式，选其一即可：
 
-方式一： libs 中引入 nim-lucene-2.8.0.jar。
+方式一： libs 中引入 nim-lucene-4.4.0.jar。
 
 方式二： 在 build.gradle 中集成：
 
 ```groovy
 dependencies {
     ...
-    compile 'com.netease.nimlib:lucene:2.8.0'
+    compile 'com.netease.nimlib:lucene:4.4.0'
 }
 ```
 
@@ -2452,7 +2518,7 @@ public void clearCache();
 
 #### <span id="群聊消息">群聊消息</span>
 
-群聊消息收发和管理和单人聊天完全相同，仅在 `SessionTypeEnum` 上做了区分，详见[消息收发](#消息收发)节。
+群聊消息收发和管理和单人聊天完全相同，仅在 `SessionTypeEnum` 上做了区分，详见[消息收发](/docs/product/IM即时通讯/SDK开发集成/Android开发集成/消息收发)节。
 
 #### <span id="设置群聊消息提醒类型">设置群聊消息提醒类型</span>
 
@@ -4023,7 +4089,7 @@ EnterChatRoomData部分参数说明：
 |String|getAccount()|获取独立登录模式的用户账号，null表示匿名登录|
 |String|getToken()|获取独立登录模式的用户密码|
 |ChatRoomIndependentCallback|getIndependentModeCallback()|获取独立模式的回调|
-|void|setIndependentMode<br>(ChatRoomIndependentCallback cb, <br>String account, String token)|设置聊天室独立模式。<br>如果是独立模式，必须提供回调函数，用于SDK向APP获取聊天室地址信息的数据。<br>独立登录的账号，可以不填。不填即为匿名登录。|
+|void|setIndependentMode<br>(ChatRoomIndependentCallback cb, <br>String account, String token)|设置聊天室独立模式。<br>如果是独立模式，必须提供回调函数，用于SDK向APP获取聊天室地址信息的数据。<br>如果SDK无法通过此回调函数获取聊天室地址(null或者有异常)，会返回错误码1001<br>独立登录的账号，可以不填。不填即为匿名登录。|
 
 - 示例
 
@@ -5093,7 +5159,7 @@ NIMClient.getService(ChatRoomService.class).pullMessageHistoryEx(roomId, startTi
 
 ### <span id="聊天室通知消息">聊天室通知消息</span>
 
-聊天室通知消息是聊天室消息的一种（消息类型为 Notification）。即聊天室消息为 ChatRoomMessage， 其中附件类型为 ChatRoomNotificationAttachment ，附件类型中的 type 字段来标识聊天室通知消息的类型。目前支持的类型见 NotificationType 。参考 [通知消息](#通知消息) 章节。
+聊天室通知消息是聊天室消息的一种（消息类型为 Notification）。即聊天室消息为 ChatRoomMessage， 其中附件类型为 ChatRoomNotificationAttachment ，附件类型中的 type 字段来标识聊天室通知消息的类型。目前支持的类型见 NotificationType 。参考 [消息收发的通知消息](/docs/product/IM即时通讯/SDK开发集成/Android开发集成/消息收发?#通知消息) 章节。
 
 ### <span id="队列服务">队列服务</span>
 
@@ -5151,6 +5217,8 @@ NIMClient.getService(ChatRoomService.class)
             }
         });
 ```
+
+> 还有一个 ChatRoomService#updateQueueEx 接口，也可用于加入或更新队列元素。区别在于，updateQueueEx 接口支持配置当用户掉线或退出聊天室后，是否删除这个元素。
 
 #### <span id="取出队列元素">取出队列元素</span>
 
@@ -5583,7 +5651,7 @@ private Observer<List<UserInfo>> userInfoUpdateObserver = new Observer<List<User
 
 ## <span id="用户关系托管">用户关系托管</span>
 
-网易云通信提供了好友关系的托管，好友资料（用户资料）由第三方 APP 自行管理或者选择网易云通信用户资料托管，见[用户资料托管](#用户资料托管)。
+网易云通信提供了好友关系的托管，好友资料（用户资料）由第三方 APP 自行管理或者选择网易云通信用户资料托管，见[用户资料托管](/docs/product/IM即时通讯/SDK开发集成/Android开发集成/用户资料托管)。
 
 ### <span id="好友关系">好友关系</span>
 
@@ -5805,7 +5873,7 @@ private Observer<FriendChangedNotify> friendChangedNotifyObserver = new Observer
 
 - API 介绍
 
-该方法是同步方法，返回我的好友帐号集合，可以根据帐号来获取对应的用户资料来构建自己的通讯录,见[构建通讯录](#构建通讯录)。
+该方法是同步方法，返回我的好友帐号集合，可以根据帐号来获取对应的用户资料来构建自己的通讯录,见[用户资料托管的构建通讯录](/docs/product/IM即时通讯/SDK开发集成/Android开发集成/用户资料托管?#构建通讯录)。
 
 - API 原型
 
@@ -7788,21 +7856,7 @@ public class NimApplication extends Application {
 
 ```java
 /**
- * 如果根据用户账号找不到UserInfo的avatar时，显示的默认头像资源ID
- *
- * @return 默认头像的资源ID
- */
-int getDefaultIconResId();
-
-/**
- * 为通知栏提供用户头像（一般从本地缓存中取，若未下载或本地不存在，返回null，通知栏将显示默认头像）
- *
- * @return 头像位图
- */
-Bitmap getAvatarForMessageNotifier(String account);
-
-/**
- * 为通知栏提供消息发送者显示名称（例如：如果是P2P聊天，可以显示备注名、昵称、帐号等；如果是群聊天，可以显示群昵称，备注名，昵称、帐号等）
+ * 为云信端内通知栏提供消息发送者显示名称（例如：如果是P2P聊天，可以显示备注名、昵称、帐号等；如果是群聊天，可以显示群昵称，备注名，昵称、帐号等）
  *
  * @param account     消息发送者账号
  * @param sessionId   会话ID（如果是P2P聊天，那么会话ID即为发送者账号，如果是群聊天，那么会话ID就是群号）
@@ -7812,13 +7866,14 @@ Bitmap getAvatarForMessageNotifier(String account);
 String getDisplayNameForMessageNotifier(String account, String sessionId, SessionTypeEnum sessionType);
 
 /**
- * 根据群组ID获取群组头像位图。头像功能可由app自己拼接或自定义，也可以直接使用预置图片作为头像
- * 为通知栏提供群头像（一般从本地缓存中取，若未下载、未合成或者本地缓存不存，请返回预置的群头像资源ID对应的Bitmap）
+ * 为云信端内推送通知栏提醒提供头像（个人、群组）
+ * 一般从本地图片缓存中获取，若未下载或本地不存在，请返回默认本地头像（可以返回默认头像资源ID对应的Bitmap）
  *
- * @param tid 群组ID
- * @return 群组头像位图
+ * @param sessionType 会话类型（个人、群组）
+ * @param sessionId   用户账号或者群ID
+ * @return 头像位图
  */
-Bitmap getTeamIcon(String tid);
+Bitmap getAvatarForMessageNotifier(SessionTypeEnum sessionType, String sessionId);
 ```
 实现上述需要的方法，在 SDKOptions 中配置 UserInfoProvider 实例，在 SDK 初始化时传入 SDKOptions 方可生效。
 
@@ -7834,7 +7889,7 @@ Bitmap getTeamIcon(String tid);
 
 ### <span id="自行实现消息提醒">自行实现消息提醒</span>
 
-如果 SDK 内建的消息提醒不能满足你的需求，你可以关闭 SDK 内置的消息提醒，自行实现。添加消息接收观察者，收到新消息时，在观察者的 `onEvent` 中实现状态栏提醒。注册注销方式详见[接收消息](#接收消息)一节。注意：只有 SDK 1.4.0 及以上版本才能使用该方式，1.4.0 以下的版本使用此方式有可能会漏掉通知。
+如果 SDK 内建的消息提醒不能满足你的需求，你可以关闭 SDK 内置的消息提醒，自行实现。添加消息接收观察者，收到新消息时，在观察者的 `onEvent` 中实现状态栏提醒。注册注销方式详见[消息收发](/docs/product/IM即时通讯/SDK开发集成/Android开发集成/消息收发)一节。注意：只有 SDK 1.4.0 及以上版本才能使用该方式，1.4.0 以下的版本使用此方式有可能会漏掉通知。
 
 ### <span id="桌面端在线配置推送">桌面端在线配置推送</span>
 
@@ -8247,7 +8302,7 @@ NIMPushClient.registerMixPushMessageHandler(mixPushMessageHandler);
 
 - onNotificationClicked：自定义处理推送通知点击事件。
 
-当消息通过第三方推送到用户，用户点击通知栏之后便回调 `onNotificationClicked` 方法（对于华为推送，该方法偶尔会失效，点击通知栏之后不能保证一定回调此方法）。网易云通信消息 `IMMessage` 提供了消息提醒定制（可查看[发送消息](#发送消息)这一节），这个功能在第三方推送中也同样支持，自定义的消息提醒包含消息推送文案以及自定义字段。自定义的消息推送文案优先级高于默认的推送文案，而自定义的字段 `payload` 也会跟随第三方推送消息携带过来。依靠此回调方法用户可以处理推送传递下来的`payload`字段。
+当消息通过第三方推送到用户，用户点击通知栏之后便回调 `onNotificationClicked` 方法（对于华为推送，该方法偶尔会失效，点击通知栏之后不能保证一定回调此方法）。网易云通信消息 `IMMessage` 提供了消息提醒定制（可查看[消息收发](/docs/product/IM即时通讯/SDK开发集成/Android开发集成/消息收发)这一节），这个功能在第三方推送中也同样支持，自定义的消息提醒包含消息推送文案以及自定义字段。自定义的消息推送文案优先级高于默认的推送文案，而自定义的字段 `payload` 也会跟随第三方推送消息携带过来。依靠此回调方法用户可以处理推送传递下来的`payload`字段。
 
 - cleanHuaWeiNotifications 华为推送清除通知栏接口
 
@@ -8711,8 +8766,6 @@ player.seekTo(pausedPosition);
 player.stop();
 ```
 
-## <span id="NOS云存储服务">NOS云存储服务</span>
-
 ## <span id="智能对话机器人">智能对话机器人</span>
 
 智能对话机器人功能，智能对话机器人解决方案依托网易IM即时通讯、语音识别、语义理解等服务，为开发者提供人机交互方式API/SDK、语音识别、意图识别、知识库配置、动态接口等功能，可以在应用IM内快速集成场景丰富的智能对话机器人。
@@ -8721,7 +8774,7 @@ player.stop();
 
 智能对话机器人和云信账号是有绑定关系的，一个机器人账号对应了一个云信 id ，两者互相独立 ， 云信内部负责维护对应关系。机器人所对应的云信用户不会在线，也不应该和其他正常用户有用户关系，如加好友，拉黑等。
 
-智能对话机器人消息属于云信内置基础消息类型中的一种，详细请参考 [发送消息](#发送消息) 章节。
+智能对话机器人消息属于云信内置基础消息类型中的一种，详细请参考 [消息收发](/docs/product/IM即时通讯/SDK开发集成/Android开发集成/消息收发) 章节。
 
 机器人的数据会在每次登录后自动同步至客户端，机器人信息由 `NimRobotInfo` 表示 `NimRobotInfo` 继承 `UserInfo`。
 
