@@ -34,18 +34,18 @@ libs
 │   └── libnrtc_network.so
 │   └── librts_network.so
 │
-├── nim-basesdk-4.4.0.jar （基础功能）
-├── nim-chatroom-4.4.0.jar （聊天室需要）
-├── nim-rts-4.4.0.jar （实时会话、文档转码需要）
-├── nim-avchat-4.4.0.jar （音视频需要）
-├── nim-lucene-4.4.0.jar （全文检索需要）
+├── nim-basesdk-6.7.0.jar （基础功能）
+├── nim-chatroom-6.7.0.jar （聊天室需要）
+├── nim-rts-6.7.0.jar （实时会话、文档转码需要）
+├── nim-avchat-6.7.0.jar （音视频需要）
+├── nim-lucene-6.7.0.jar （全文检索需要）
 ├── nrtc-sdk.jar（音视频需要）
 ```
 
 以上文件列表中，jar 文件版本号可能会不同，子目录中的文件是 SDK 所依赖的各个 CPU 架构的 so 库。
 
 
-> 按需配置 jar 包： 如果不需要聊天室功能，可以去掉 nim-chatroom-4.4.0.jar。 如果只需要 IM 基础功能和 音视频功能，可以去掉 nim-chatroom-4.4.0.jar，so 库需要加上 libnrtc*.so，还需加上 nim-avchat-4.4.0.jar 和 nrtc-sdk.jar。 如果不需要全文检索功能，可以去掉 nim-lucene-4.4.0.jar（该包有 1M+ 大小，如果没有用到消息全文检索功能，建议去掉）。
+> 按需配置 jar 包： 如果不需要聊天室功能，可以去掉 nim-chatroom-6.7.0.jar。 如果只需要 IM 基础功能和 音视频功能，可以去掉 nim-chatroom-6.7.0.jar，so 库需要加上 libnrtc*.so，还需加上 nim-avchat-6.7.0.jar 和 nrtc-sdk.jar。 如果不需要全文检索功能，可以去掉 nim-lucene-6.7.0.jar（该包有 1M+ 大小，如果没有用到消息全文检索功能，建议去掉）。
 
 如果你使用的 IDE 是 Android Studio，要将 jni 库按照 IDEA 工程目录的结构，放置在对应的目录中（一般为 src/main/jniLibs）。或者在 build.gradle 中配置好 jniLibs 的 sourceSets（可参考 demo 的 build.gradle）。
 
