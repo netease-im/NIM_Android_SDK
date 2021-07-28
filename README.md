@@ -52,3 +52,7 @@ libs
 ## 集成
 
 你可以通过[官网下载地址](http://netease.im/im-sdk-demo)下载最新版本，并添加到工程中，具体步骤参考[集成文档](http://dev.netease.im/docs/product/IM%E5%8D%B3%E6%97%B6%E9%80%9A%E8%AE%AF/SDK%E5%BC%80%E5%8F%91%E9%9B%86%E6%88%90/Android%E5%BC%80%E5%8F%91%E9%9B%86%E6%88%90/%E6%A6%82%E8%A6%81%E4%BB%8B%E7%BB%8D)。
+
+**推荐客户得京东卡，首次推荐成单得3000元京东卡，连续推荐4500元/单，上不封顶。点击参与https://yunxin.163.com/promotion/recommend**
+
+![main](https://github.com/netease-kit/NIM_iOS_UIKit/blob/master/activity-1.png)
